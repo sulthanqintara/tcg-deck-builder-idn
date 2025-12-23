@@ -1,19 +1,26 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { toast } from "sonner";
-import { type DeckItem } from "@/types/deck";
-import { type Card as CardType } from "@/lib/data";
+import {
+  type DeckItem,
+  type Card,
+  type CardFilters,
+  DEFAULT_FILTERS,
+} from "@/lib/types";
 
 interface DeckStore {
   deck: DeckItem[];
-  searchQuery: string;
-  activeTab: string;
+  filters: CardFilters;
 
-  setSearchQuery: (query: string) => void;
-  setActiveTab: (tab: string) => void;
-  addToDeck: (card: CardType) => void;
+  setFilters: (filters: CardFilters) => void;
+  updateFilter: <K extends keyof CardFilters>(
+    key: K,
+    value: CardFilters[K]
+  ) => void;
+  resetFilters: () => void;
+  addToDeck: (card: Card) => void;
   removeFromDeck: (cardId: string) => void;
-  setCardCount: (card: CardType, count: number) => void;
+  setCardCount: (card: Card, count: number) => void;
   clearDeck: () => void;
 }
 
@@ -21,11 +28,16 @@ export const useDeckStore = create<DeckStore>()(
   persist(
     (set, get) => ({
       deck: [],
-      searchQuery: "",
-      activeTab: "all",
+      filters: DEFAULT_FILTERS,
 
-      setSearchQuery: (query) => set({ searchQuery: query }),
-      setActiveTab: (tab) => set({ activeTab: tab }),
+      setFilters: (filters) => set({ filters }),
+
+      updateFilter: (key, value) =>
+        set((state) => ({
+          filters: { ...state.filters, [key]: value },
+        })),
+
+      resetFilters: () => set({ filters: DEFAULT_FILTERS }),
 
       addToDeck: (card) => {
         const { deck } = get();
@@ -34,7 +46,7 @@ export const useDeckStore = create<DeckStore>()(
         if (existing) {
           if (existing.count >= 4) {
             const isBasicEnergy =
-              card.supertype === "Energy" && card.subtypes?.includes("Basic");
+              card.category === "Energy" && card.stage === "Basic";
             if (!isBasicEnergy) {
               toast.error("Max 4 copies allowed (except Basic Energy)");
               return;
@@ -68,7 +80,7 @@ export const useDeckStore = create<DeckStore>()(
         if (count < 0) return;
 
         const isBasicEnergy =
-          card.supertype === "Energy" && card.subtypes?.includes("Basic");
+          card.category === "Energy" && card.stage === "Basic";
         const newCount = isBasicEnergy ? count : Math.min(count, 4);
 
         if (!isBasicEnergy && count > 4) {

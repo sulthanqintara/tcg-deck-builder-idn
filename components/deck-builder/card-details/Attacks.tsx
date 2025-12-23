@@ -1,4 +1,4 @@
-import { type Card as CardType } from "@/lib/data";
+import { type Card as CardType } from "@/lib/types";
 
 interface AttacksProps {
   attacks: CardType["attacks"];
@@ -17,7 +17,7 @@ export function Attacks({ attacks }: AttacksProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex gap-1">
-                {attack.cost.map((cost, i) => (
+                {attack.cost?.map((cost, i) => (
                   <div
                     key={i}
                     title={cost}
@@ -33,9 +33,11 @@ export function Attacks({ attacks }: AttacksProps) {
             </div>
             <span className="font-bold text-xl">{attack.damage}</span>
           </div>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
-            {attack.text}
-          </p>
+          {attack.effect && (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+              {attack.effect}
+            </p>
+          )}
         </div>
       ))}
     </div>

@@ -1,4 +1,4 @@
-import { type Card as CardType } from "@/lib/data";
+import { type Card as CardType } from "@/lib/types";
 
 interface FooterProps {
   card: CardType;
@@ -11,7 +11,7 @@ export function Footer({ card }: FooterProps) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">Illustrator</span>
           <span className="font-medium underline decoration-1 underline-offset-2 hover:text-primary cursor-pointer transition-colors max-w-[200px] truncate block text-right">
-            {card.artist || "Unknown"}
+            {card.illustrator || "Unknown"}
           </span>
         </div>
         <div className="flex justify-between">
@@ -19,7 +19,7 @@ export function Footer({ card }: FooterProps) {
           <div className="flex items-center gap-2">
             <span className="font-medium">{card.set.name}</span>
             <span className="text-muted-foreground text-xs bg-secondary px-1 py-0.5 rounded">
-              {card.set.ptcgoCode}
+              {card.set.id.toUpperCase()}
             </span>
           </div>
         </div>

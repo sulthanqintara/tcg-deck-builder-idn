@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
-import { type Card as CardType } from "@/lib/data";
+import { type Card as CardType } from "@/lib/types";
 import { CardCounter } from "./CardCounter";
 
 interface CardItemProps {

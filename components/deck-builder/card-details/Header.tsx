@@ -1,4 +1,4 @@
-import { type Card as CardType } from "@/lib/data";
+import { type Card as CardType } from "@/lib/types";
 
 interface HeaderProps {
   card: CardType;
@@ -27,10 +27,10 @@ export function Header({ card }: HeaderProps) {
           </div>
           <div className="text-base font-medium text-muted-foreground flex items-center gap-2">
             <span>{card.supertype}</span>
-            {card.subtypes && card.subtypes.length > 0 && (
+            {card.stage && (
               <>
                 <span>•</span>
-                <span>{card.subtypes.join(", ")}</span>
+                <span>{card.stage}</span>
               </>
             )}
           </div>

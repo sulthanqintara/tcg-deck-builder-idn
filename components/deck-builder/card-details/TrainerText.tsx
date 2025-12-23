@@ -1,19 +1,13 @@
-import { type Card as CardType } from "@/lib/data";
-
 interface TrainerTextProps {
-  rules?: string[];
+  effect?: string;
 }
 
-export function TrainerText({ rules }: TrainerTextProps) {
-  if (!rules || rules.length === 0) return null;
+export function TrainerText({ effect }: TrainerTextProps) {
+  if (!effect) return null;
 
   return (
     <div className="space-y-2 p-4 bg-secondary/10 rounded-lg">
-      {rules.map((rule, idx) => (
-        <p key={idx} className="text-sm leading-relaxed text-foreground">
-          {rule}
-        </p>
-      ))}
+      <p className="text-sm leading-relaxed text-foreground">{effect}</p>
     </div>
   );
 }

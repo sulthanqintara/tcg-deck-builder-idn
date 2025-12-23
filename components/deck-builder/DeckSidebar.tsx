@@ -4,14 +4,13 @@ import Image from "next/image";
 import { Plus, Minus, Trash2, Copy, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { type Card as CardType } from "@/lib/data";
-import { type DeckItem, type DeckStats } from "@/types/deck";
+import { type Card, type DeckItem, type DeckStats } from "@/lib/types";
 
 interface DeckSidebarProps {
   deck: DeckItem[];
   deckStats: DeckStats;
   onRemoveFromDeck: (cardId: string) => void;
-  onAddToDeck: (card: CardType) => void;
+  onAddToDeck: (card: Card) => void;
   onClearDeck: () => void;
   onCopyDeck: () => void;
   onSaveDeck?: () => void;
@@ -103,25 +102,29 @@ export function DeckSidebar({
                             {card.name}
                           </div>
                           <div className="text-[10px] text-muted-foreground">
-                            {card.set.ptcgoCode} {card.number}
+                            {card.set.id.toUpperCase()} {card.number}
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          <button
+                          <Button
+                            variant="hover-destructive"
+                            size="icon"
                             onClick={() => onRemoveFromDeck(card.id)}
-                            className="h-6 w-6 flex items-center justify-center rounded-sm hover:bg-destructive/10 hover:text-destructive text-muted-foreground text-xs"
+                            className="h-6 w-6 rounded-sm hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
                           >
                             <Minus className="h-3 w-3" />
-                          </button>
+                          </Button>
                           <span className="w-4 text-center text-sm font-medium">
                             {card.count}
                           </span>
-                          <button
+                          <Button
+                            variant="hover-primary"
+                            size="icon"
                             onClick={() => onAddToDeck(card)}
-                            className="h-6 w-6 flex items-center justify-center rounded-sm hover:bg-primary/10 hover:text-primary text-muted-foreground text-xs"
+                            className="h-6 w-6 rounded-sm hover:bg-primary/10 hover:text-primary text-muted-foreground"
                           >
                             <Plus className="h-3 w-3" />
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     ))}

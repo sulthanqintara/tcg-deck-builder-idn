@@ -1,4 +1,4 @@
-import { type Card as CardType } from "@/lib/data";
+import { type Card as CardType } from "@/lib/types";
 
 interface AbilitiesProps {
   abilities: CardType["abilities"];
@@ -23,7 +23,7 @@ export function Abilities({ abilities }: AbilitiesProps) {
             </span>
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground/90">
-            {ability.text}
+            {ability.effect}
           </p>
         </div>
       ))}

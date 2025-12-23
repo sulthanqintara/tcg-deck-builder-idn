@@ -1,17 +1,16 @@
 import { Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { type Card as CardType } from "@/lib/data";
+import { type Card } from "@/lib/types";
 
 interface CardCounterProps {
-  card: CardType;
+  card: Card;
   count: number;
-  onUpdateCount: (card: CardType, count: number) => void;
+  onUpdateCount: (card: Card, count: number) => void;
 }
 
 export function CardCounter({ card, count, onUpdateCount }: CardCounterProps) {
-  const isBasicEnergy =
-    card.supertype === "Energy" && card.subtypes?.includes("Basic");
+  const isBasicEnergy = card.category === "Energy" && card.stage === "Basic";
 
   const handleInputChange = (value: string) => {
     if (value === "") return;

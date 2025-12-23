@@ -1,43 +1,44 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { mockCards } from "@/lib/data";
-import { type DeckStats } from "@/types/deck";
+import { type DeckStats, type Card } from "@/lib/types";
 import { useDeckStore } from "@/store/use-deck-store";
+import { useCards } from "@/hooks/use-cards";
+
+// Hydration-safe hook to check if we're on the client
+const emptySubscribe = () => () => {};
+function useIsClient() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+}
 
 export function useDeckBuilder() {
   const {
     deck,
-    searchQuery,
-    setSearchQuery,
-    activeTab,
-    setActiveTab,
+    filters,
+    setFilters,
     addToDeck,
     removeFromDeck,
     setCardCount,
     clearDeck,
   } = useDeckStore();
 
-  const [isMounted, setIsMounted] = useState(false);
+  const isClient = useIsClient();
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const effectiveDeck = useMemo(() => {
+    return isClient ? deck : [];
+  }, [isClient, deck]);
 
-  const effectiveDeck = isMounted ? deck : [];
+  // Fetch cards from TCGDex
+  const { data: cardsData, isLoading, error } = useCards(filters);
 
-  const filteredCards = useMemo(() => {
-    return mockCards.filter((card) => {
-      const matchesSearch = card.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesTab =
-        activeTab === "all" ||
-        card.supertype.toLowerCase() === activeTab.toLowerCase();
-      return matchesSearch && matchesTab;
-    });
-  }, [searchQuery, activeTab]);
+  const cards = useMemo<Card[]>(() => {
+    return cardsData?.cards || [];
+  }, [cardsData]);
 
   const deckStats = useMemo<DeckStats>(() => {
     const pokemon = effectiveDeck
@@ -62,7 +63,10 @@ export function useDeckBuilder() {
     if (pokemon.length > 0) {
       text += `Pokémon: ${deckStats.pokemon}\n`;
       pokemon.forEach(
-        (c) => (text += `${c.count} ${c.name} ${c.set.ptcgoCode} ${c.number}\n`)
+        (c) =>
+          (text += `${c.count} ${c.name} ${c.set.id.toUpperCase()} ${
+            c.number
+          }\n`)
       );
       text += "\n";
     }
@@ -70,7 +74,10 @@ export function useDeckBuilder() {
     if (trainer.length > 0) {
       text += `Trainer: ${deckStats.trainer}\n`;
       trainer.forEach(
-        (c) => (text += `${c.count} ${c.name} ${c.set.ptcgoCode} ${c.number}\n`)
+        (c) =>
+          (text += `${c.count} ${c.name} ${c.set.id.toUpperCase()} ${
+            c.number
+          }\n`)
       );
       text += "\n";
     }
@@ -78,7 +85,10 @@ export function useDeckBuilder() {
     if (energy.length > 0) {
       text += `Energy: ${deckStats.energy}\n`;
       energy.forEach(
-        (c) => (text += `${c.count} ${c.name} ${c.set.ptcgoCode} ${c.number}\n`)
+        (c) =>
+          (text += `${c.count} ${c.name} ${c.set.id.toUpperCase()} ${
+            c.number
+          }\n`)
       );
     }
 
@@ -91,12 +101,12 @@ export function useDeckBuilder() {
   };
 
   return {
-    searchQuery,
-    setSearchQuery,
+    filters,
+    setFilters,
     deck: effectiveDeck,
-    activeTab,
-    setActiveTab,
-    filteredCards,
+    cards,
+    isLoading,
+    error: error ? String(error) : cardsData?.error,
     deckStats,
     addToDeck,
     removeFromDeck,

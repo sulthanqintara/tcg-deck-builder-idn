@@ -1,4 +1,4 @@
-import { type Card as CardType } from "@/lib/data";
+import { type Card as CardType } from "@/lib/types";
 
 interface StatsProps {
   card: CardType;
@@ -36,15 +36,18 @@ export function Stats({ card }: StatsProps) {
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground font-medium">Retreat Cost</span>
         <div className="flex gap-1">
-          {card.retreatCost?.map((cost, i) => (
-            <div
-              key={i}
-              title={cost}
-              className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center text-[9px] font-bold border border-foreground/10"
-            >
-              {cost.charAt(0)}
-            </div>
-          )) || "None"}
+          {card.retreat ? (
+            Array.from({ length: card.retreat }).map((_, i) => (
+              <div
+                key={i}
+                className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center text-[9px] font-bold border border-foreground/10"
+              >
+                C
+              </div>
+            ))
+          ) : (
+            <span className="text-muted-foreground">None</span>
+          )}
         </div>
       </div>
     </div>

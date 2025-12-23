@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { Layers, LogIn, LayoutGrid, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export function Navbar() {
   return (
     <nav className="border-b bg-card text-card-foreground">
-      <div className="container mx-auto flex items-center justify-between h-16 px-4">
+      <div className="flex items-center justify-between h-16 px-4">
         <Link
           href="/"
           className="flex items-center gap-2 font-bold text-xl tracking-tighter"
@@ -16,6 +16,7 @@ export function Navbar() {
           <span>TCG Builder</span>
         </Link>
         <div className="flex items-center gap-6">
+          <ModeToggle />
           <Link
             href="/"
             className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-2"

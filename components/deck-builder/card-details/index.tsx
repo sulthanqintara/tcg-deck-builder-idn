@@ -6,7 +6,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { type Card as CardType } from "@/lib/data";
+import { type Card as CardType } from "@/lib/types";
 import { Header } from "./Header";
 import { Abilities } from "./Abilities";
 import { Attacks } from "./Attacks";
@@ -30,7 +30,9 @@ export function CardDetailsDialog({
 
   const isPokemon = card.supertype === "Pokémon";
   const isTrainer = card.supertype === "Trainer";
-  const isEnergy = card.supertype === "Energy";
+
+  // For trainers, try to get effect from first ability
+  const trainerEffect = isTrainer && card.abilities?.[0]?.effect;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,13 +69,13 @@ export function CardDetailsDialog({
             )}
 
             {/* Trainer-specific details */}
-            {isTrainer && <TrainerText rules={card.rules} />}
+            {isTrainer && <TrainerText effect={trainerEffect || undefined} />}
 
             {/* Energy cards don't need additional content beyond header */}
 
             <div className="space-y-4 mt-auto pt-4 border-t border-border">
               <Footer card={card} />
-              <Legalities legalities={card.legalities} />
+              <Legalities regulationMark={card.regulationMark} />
             </div>
           </div>
         </div>
