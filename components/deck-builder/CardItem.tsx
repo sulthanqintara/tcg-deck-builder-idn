@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { type Card as CardType } from "@/lib/types";
@@ -7,10 +8,10 @@ interface CardItemProps {
   card: CardType;
   count: number;
   onUpdateCount: (card: CardType, count: number) => void;
-  onClick: () => void;
+  onClick: (card: CardType) => void;
 }
 
-export function CardItem({
+function CardItemComponent({
   card,
   count,
   onUpdateCount,
@@ -20,7 +21,7 @@ export function CardItem({
     <div className="flex flex-col gap-2">
       <Card
         className="group relative overflow-hidden transition-all hover:ring-2 hover:ring-primary cursor-pointer border-0 bg-transparent p-0"
-        onClick={onClick}
+        onClick={() => onClick(card)}
       >
         <CardContent className="p-0 relative">
           <Image
@@ -42,3 +43,13 @@ export function CardItem({
     </div>
   );
 }
+
+// Custom equality check: only re-render if card.id or count changes
+function areEqual(prevProps: CardItemProps, nextProps: CardItemProps): boolean {
+  return (
+    prevProps.card.id === nextProps.card.id &&
+    prevProps.count === nextProps.count
+  );
+}
+
+export const CardItem = memo(CardItemComponent, areEqual);

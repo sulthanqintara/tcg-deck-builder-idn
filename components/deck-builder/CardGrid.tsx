@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { type Card, type CardFilters, type DeckItem } from "@/lib/types";
 import { CardGridHeader } from "./CardGridHeader";
@@ -28,9 +28,19 @@ export function CardGrid({
 }: CardGridProps) {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
-  const getCardCount = (cardId: string) => {
-    return deck.find((c) => c.id === cardId)?.count || 0;
-  };
+  // O(1) lookup map instead of O(n) find() per card
+  const deckCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of deck) {
+      map.set(item.id, item.count);
+    }
+    return map;
+  }, [deck]);
+
+  // Stable callback for card selection
+  const handleCardClick = useCallback((card: Card) => {
+    setSelectedCard(card);
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden min-h-0">
@@ -54,13 +64,13 @@ export function CardGrid({
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-10 p-8">
             {cards.length > 0 ? (
-              cards.map((card, idx) => (
+              cards.map((card) => (
                 <CardItem
                   key={card.id}
                   card={card}
-                  count={getCardCount(card.id)}
+                  count={deckCountMap.get(card.id) ?? 0}
                   onUpdateCount={onUpdateCount}
-                  onClick={() => setSelectedCard(card)}
+                  onClick={handleCardClick}
                 />
               ))
             ) : (
