@@ -75,20 +75,38 @@ function mapCard(tcgCard: Record<string, unknown>, seriesId?: string): Card {
   };
 }
 
+export interface PaginatedFilters extends CardFilters {
+  page?: number;
+  limit?: number;
+}
+
 export interface SearchCardsResult {
   cards: Card[];
   error?: string;
+  page: number;
+  totalCards: number;
+  hasMore: boolean;
 }
 
 export async function searchCards(
-  filters: CardFilters
+  filters: PaginatedFilters
 ): Promise<SearchCardsResult> {
+  const page = filters.page ?? 0;
+  const limit = filters.limit ?? 50;
+
+  const emptyResult: SearchCardsResult = {
+    cards: [],
+    page,
+    totalCards: 0,
+    hasMore: false,
+  };
+
   try {
     // If we have a set filter, fetch cards from that set
     if (filters.setId) {
       const setData = await tcgdex.set.get(filters.setId);
       if (!setData || !setData.cards) {
-        return { cards: [] };
+        return emptyResult;
       }
 
       // Get series ID for image URL construction
@@ -96,46 +114,69 @@ export async function searchCards(
         ?.id;
 
       // Map and filter the cards
-      let cards = setData.cards.map((c) =>
+      let allCards = setData.cards.map((c) =>
         mapCard({ ...c, set: { id: setData.id, name: setData.name } }, seriesId)
       );
 
       // Apply client-side filters
-      cards = applyFilters(cards, filters);
+      allCards = applyFilters(allCards, filters);
 
-      return { cards };
+      // Apply pagination
+      const totalCards = allCards.length;
+      const startIndex = page * limit;
+      const paginatedCards = allCards.slice(startIndex, startIndex + limit);
+
+      return {
+        cards: paginatedCards,
+        page,
+        totalCards,
+        hasMore: startIndex + limit < totalCards,
+      };
     }
 
-    // Default: fetch from a popular recent set for demo
-    // In production, you might want to implement pagination or search
-    const sets = await tcgdex.set.list();
-    if (!sets || sets.length === 0) {
-      return { cards: [], error: "No sets available" };
+    // No set filter - fetch all cards
+    const cardsList = await tcgdex.card.list();
+    if (!cardsList || cardsList.length === 0) {
+      return { ...emptyResult, error: "No cards available" };
     }
 
-    // Get the most recent set
-    const latestSet = sets[sets.length - 1];
-    const setData = await tcgdex.set.get(latestSet.id);
+    // Map card list items to our Card format
+    // Note: card.list() returns simplified data (id, localId, name, image)
+    let allCards = cardsList.map((c) => {
+      const cardData = c as unknown as Record<string, unknown>;
+      const cardId = cardData.id as string;
+      // Extract set ID from card ID (format: "SETID-LOCALID")
+      const parts = cardId.split("-");
+      const setId = parts.length > 1 ? parts.slice(0, -1).join("-") : "";
+      const localId = (cardData.localId as string) || parts[parts.length - 1];
 
-    if (!setData || !setData.cards) {
-      return { cards: [] };
-    }
+      return mapCard(
+        {
+          ...cardData,
+          set: { id: setId, name: "" },
+          localId,
+        },
+        undefined
+      );
+    });
 
-    // Get series ID for image URL construction
-    const seriesId = (setData as unknown as { serie?: { id: string } }).serie
-      ?.id;
+    allCards = applyFilters(allCards, filters);
 
-    let cards = setData.cards.map((c) =>
-      mapCard({ ...c, set: { id: setData.id, name: setData.name } }, seriesId)
-    );
+    // Apply pagination
+    const totalCards = allCards.length;
+    const startIndex = page * limit;
+    const paginatedCards = allCards.slice(startIndex, startIndex + limit);
 
-    cards = applyFilters(cards, filters);
-
-    return { cards };
+    return {
+      cards: paginatedCards,
+      page,
+      totalCards,
+      hasMore: startIndex + limit < totalCards,
+    };
   } catch (error) {
     console.error("TCGDex search error:", error);
     return {
-      cards: [],
+      ...emptyResult,
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }

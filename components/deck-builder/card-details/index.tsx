@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   Dialog,
@@ -26,6 +27,13 @@ export function CardDetailsDialog({
   open,
   onOpenChange,
 }: CardDetailsDialogProps) {
+  const [imageError, setImageError] = useState(false);
+  const imageSrc = card ? card.images.large || card.images.small : "";
+
+  useEffect(() => {
+    setImageError(false);
+  }, [imageSrc]);
+
   if (!card) return null;
 
   const isPokemon = card.supertype === "Pokémon";
@@ -46,11 +54,16 @@ export function CardDetailsDialog({
           <div className="w-full md:w-1/2 bg-neutral-900/5 p-6 flex items-center justify-center relative">
             <div className="relative aspect-[2.5/3.5] w-full max-w-[360px] shadow-2xl rounded-xl overflow-hidden transform transition-transform hover:scale-105 duration-300">
               <Image
-                src={card.images.large || card.images.small}
+                src={
+                  imageError
+                    ? "/Gemini_Generated_Image_ro97daro97daro97.webp"
+                    : imageSrc
+                }
                 alt={card.name}
                 fill
                 className="object-contain"
                 priority
+                onError={() => setImageError(true)}
               />
             </div>
           </div>

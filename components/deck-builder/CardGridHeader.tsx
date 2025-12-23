@@ -7,6 +7,7 @@ interface CardGridHeaderProps {
   filters: CardFilters;
   setFilters: (filters: CardFilters) => void;
   cardCount: number;
+  totalCards: number;
   isLoading: boolean;
 }
 
@@ -14,6 +15,7 @@ export function CardGridHeader({
   filters,
   setFilters,
   cardCount,
+  totalCards,
   isLoading,
 }: CardGridHeaderProps) {
   const handleSearchChange = (search: string) => {
@@ -29,10 +31,14 @@ export function CardGridHeader({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Deck Builder</h1>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          {isLoading ? (
+          {isLoading && cardCount === 0 ? (
             <Loader2 className="h-4 w-4 animate-spin" />
+          ) : totalCards > 0 ? (
+            <span>
+              {cardCount} of {totalCards} cards
+            </span>
           ) : (
-            <span>{cardCount} cards</span>
+            <span>0 cards</span>
           )}
         </div>
       </div>

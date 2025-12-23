@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 import Image from "next/image";
 import { Plus, Minus, Trash2, Copy, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,69 @@ interface DeckSidebarProps {
   onClearDeck: () => void;
   onCopyDeck: () => void;
   onSaveDeck?: () => void;
+}
+
+interface DeckCardRowProps {
+  card: DeckItem;
+  onRemoveFromDeck: (cardId: string) => void;
+  onAddToDeck: (card: Card) => void;
+}
+
+function DeckCardRow({
+  card,
+  onRemoveFromDeck,
+  onAddToDeck,
+}: DeckCardRowProps) {
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [card.images.small]);
+
+  return (
+    <div className="group flex items-center gap-2 p-1.5 rounded-md hover:bg-secondary/50 transition-colors">
+      <div className="relative h-10 w-8 shrink-0">
+        <Image
+          src={
+            imageError
+              ? "/Gemini_Generated_Image_ro97daro97daro97.webp"
+              : card.images.small
+          }
+          alt={card.name}
+          fill
+          className="object-cover rounded-sm"
+          onError={() => setImageError(true)}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate">{card.name}</div>
+        <div className="text-[10px] text-muted-foreground">
+          {card.set.id.toUpperCase()} {card.number}
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="hover-destructive"
+          size="icon"
+          onClick={() => onRemoveFromDeck(card.id)}
+          className="h-6 w-6 rounded-sm hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+        >
+          <Minus className="h-3 w-3" />
+        </Button>
+        <span className="w-4 text-center text-sm font-medium">
+          {card.count}
+        </span>
+        <Button
+          variant="hover-primary"
+          size="icon"
+          onClick={() => onAddToDeck(card)}
+          className="h-6 w-6 rounded-sm hover:bg-primary/10 hover:text-primary text-muted-foreground"
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function DeckSidebar({
@@ -85,48 +150,12 @@ export function DeckSidebar({
                   </h3>
                   <div className="space-y-1">
                     {cardsOfType.map((card) => (
-                      <div
+                      <DeckCardRow
                         key={card.id}
-                        className="group flex items-center gap-2 p-1.5 rounded-md hover:bg-secondary/50 transition-colors"
-                      >
-                        <div className="relative h-10 w-8 shrink-0">
-                          <Image
-                            src={card.images.small}
-                            alt={card.name}
-                            fill
-                            className="object-cover rounded-sm"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {card.name}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {card.set.id.toUpperCase()} {card.number}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="hover-destructive"
-                            size="icon"
-                            onClick={() => onRemoveFromDeck(card.id)}
-                            className="h-6 w-6 rounded-sm hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-4 text-center text-sm font-medium">
-                            {card.count}
-                          </span>
-                          <Button
-                            variant="hover-primary"
-                            size="icon"
-                            onClick={() => onAddToDeck(card)}
-                            className="h-6 w-6 rounded-sm hover:bg-primary/10 hover:text-primary text-muted-foreground"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
+                        card={card}
+                        onRemoveFromDeck={onRemoveFromDeck}
+                        onAddToDeck={onAddToDeck}
+                      />
                     ))}
                   </div>
                 </div>

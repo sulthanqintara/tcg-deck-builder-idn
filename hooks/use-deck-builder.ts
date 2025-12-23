@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore, useCallback } from "react";
 import { toast } from "sonner";
 import { type DeckStats, type Card } from "@/lib/types";
 import { useDeckStore } from "@/store/use-deck-store";
-import { useCards } from "@/hooks/use-cards";
+import { useInfiniteCards } from "@/hooks/use-cards";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 // Hydration-safe hook to check if we're on the client
 const emptySubscribe = () => () => {};
@@ -33,12 +34,34 @@ export function useDeckBuilder() {
     return isClient ? deck : [];
   }, [isClient, deck]);
 
-  // Fetch cards from TCGDex
-  const { data: cardsData, isLoading, error } = useCards(filters);
+  // Debounce filters to prevent excessive API calls while typing
+  const debouncedFilters = useDebouncedValue(filters, 300);
 
+  // Fetch cards from TCGDex with infinite query (using debounced filters)
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteCards(debouncedFilters);
+
+  // Flatten all pages into a single cards array
   const cards = useMemo<Card[]>(() => {
-    return cardsData?.cards || [];
-  }, [cardsData]);
+    if (!data?.pages) return [];
+    return data.pages.flatMap((page) => page.cards);
+  }, [data]);
+
+  // Get total card count from first page
+  const totalCards = data?.pages[0]?.totalCards ?? 0;
+
+  // Stable callback for loading more
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const deckStats = useMemo<DeckStats>(() => {
     const pokemon = effectiveDeck
@@ -100,18 +123,26 @@ export function useDeckBuilder() {
     }
   };
 
+  // Extract error message from first page or query error
+  const errorMessage = error ? String(error) : data?.pages[0]?.error;
+
   return {
     filters,
     setFilters,
     deck: effectiveDeck,
     cards,
+    totalCards,
     isLoading,
-    error: error ? String(error) : cardsData?.error,
+    error: errorMessage,
     deckStats,
     addToDeck,
     removeFromDeck,
     setCardCount,
     clearDeck,
     copyDeckList,
+    // Infinite scroll props
+    hasNextPage: hasNextPage ?? false,
+    isFetchingNextPage,
+    loadMore,
   };
 }

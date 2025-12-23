@@ -11,6 +11,7 @@ export default function Home() {
     setFilters,
     deck,
     cards,
+    totalCards,
     isLoading,
     error,
     deckStats,
@@ -19,6 +20,9 @@ export default function Home() {
     clearDeck,
     copyDeckList,
     setCardCount,
+    hasNextPage,
+    isFetchingNextPage,
+    loadMore,
   } = useDeckBuilder();
 
   return (
@@ -33,10 +37,14 @@ export default function Home() {
         filters={filters}
         setFilters={setFilters}
         cards={cards}
+        totalCards={totalCards}
         isLoading={isLoading}
         error={error}
         deck={deck}
         onUpdateCount={setCardCount}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        loadMore={loadMore}
       />
 
       {/* Right Sidebar - Deck */}
