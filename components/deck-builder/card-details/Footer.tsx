@@ -27,6 +27,14 @@ export function Footer({ card }: FooterProps) {
           <span className="text-muted-foreground">Number</span>
           <span className="font-medium">{card.number}</span>
         </div>
+        {card.rarity && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Rarity</span>
+            <span className="font-medium bg-gradient-to-r from-amber-500 to-yellow-500 bg-clip-text text-transparent">
+              {card.rarity}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/20 p-2 rounded-md justify-between">

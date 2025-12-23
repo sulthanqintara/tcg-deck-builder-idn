@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "asia.pokemon-card.com",
+      },
+      {
+        // Backwards compatibility for cached deck data
+        protocol: "https",
         hostname: "assets.tcgdex.net",
       },
     ],

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { searchCards, getSets } from "@/actions/tcgdex";
+import { searchCards, getSets } from "@/actions/cards";
 import type { CardFilters } from "@/lib/types";
 
 const CARDS_PER_PAGE = 50;
