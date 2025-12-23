@@ -17,6 +17,7 @@ export default function Home() {
     removeFromDeck,
     clearDeck,
     copyDeckList,
+    setCardCount,
   } = useDeckBuilder();
 
   return (
@@ -27,7 +28,8 @@ export default function Home() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         filteredCards={filteredCards}
-        onCardClick={addToDeck}
+        deck={deck}
+        onUpdateCount={setCardCount}
       />
       <DeckSidebar
         deck={deck}

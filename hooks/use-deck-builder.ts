@@ -1,14 +1,31 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { mockCards, type Card as CardType } from "@/lib/data";
-import { type DeckItem, type DeckStats } from "@/types/deck";
+import { mockCards } from "@/lib/data";
+import { type DeckStats } from "@/types/deck";
+import { useDeckStore } from "@/store/use-deck-store";
 
 export function useDeckBuilder() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [deck, setDeck] = useState<DeckItem[]>([]);
-  const [activeTab, setActiveTab] = useState("all");
+  const {
+    deck,
+    searchQuery,
+    setSearchQuery,
+    activeTab,
+    setActiveTab,
+    addToDeck,
+    removeFromDeck,
+    setCardCount,
+    clearDeck,
+  } = useDeckStore();
+
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const effectiveDeck = isMounted ? deck : [];
 
   const filteredCards = useMemo(() => {
     return mockCards.filter((card) => {
@@ -23,56 +40,22 @@ export function useDeckBuilder() {
   }, [searchQuery, activeTab]);
 
   const deckStats = useMemo<DeckStats>(() => {
-    const pokemon = deck
+    const pokemon = effectiveDeck
       .filter((c) => c.supertype === "Pokémon")
       .reduce((acc, c) => acc + c.count, 0);
-    const trainer = deck
+    const trainer = effectiveDeck
       .filter((c) => c.supertype === "Trainer")
       .reduce((acc, c) => acc + c.count, 0);
-    const energy = deck
+    const energy = effectiveDeck
       .filter((c) => c.supertype === "Energy")
       .reduce((acc, c) => acc + c.count, 0);
     return { pokemon, trainer, energy, total: pokemon + trainer + energy };
-  }, [deck]);
-
-  const addToDeck = (card: CardType) => {
-    setDeck((prev) => {
-      const existing = prev.find((c) => c.id === card.id);
-      if (existing) {
-        if (existing.count >= 4) {
-          const isBasicEnergy =
-            card.supertype === "Energy" && card.subtypes?.includes("Basic");
-          if (!isBasicEnergy) {
-            toast.error("Max 4 copies allowed (except Basic Energy)");
-            return prev;
-          }
-        }
-        return prev.map((c) =>
-          c.id === card.id ? { ...c, count: c.count + 1 } : c
-        );
-      }
-      return [...prev, { ...card, count: 1 }];
-    });
-  };
-
-  const removeFromDeck = (cardId: string) => {
-    setDeck((prev) => {
-      const existing = prev.find((c) => c.id === cardId);
-      if (existing && existing.count > 1) {
-        return prev.map((c) =>
-          c.id === cardId ? { ...c, count: c.count - 1 } : c
-        );
-      }
-      return prev.filter((c) => c.id !== cardId);
-    });
-  };
-
-  const clearDeck = () => setDeck([]);
+  }, [effectiveDeck]);
 
   const copyDeckList = () => {
-    const pokemon = deck.filter((c) => c.supertype === "Pokémon");
-    const trainer = deck.filter((c) => c.supertype === "Trainer");
-    const energy = deck.filter((c) => c.supertype === "Energy");
+    const pokemon = effectiveDeck.filter((c) => c.supertype === "Pokémon");
+    const trainer = effectiveDeck.filter((c) => c.supertype === "Trainer");
+    const energy = effectiveDeck.filter((c) => c.supertype === "Energy");
 
     let text = "";
 
@@ -110,13 +93,14 @@ export function useDeckBuilder() {
   return {
     searchQuery,
     setSearchQuery,
-    deck,
+    deck: effectiveDeck,
     activeTab,
     setActiveTab,
     filteredCards,
     deckStats,
     addToDeck,
     removeFromDeck,
+    setCardCount,
     clearDeck,
     copyDeckList,
   };
