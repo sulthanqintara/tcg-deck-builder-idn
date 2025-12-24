@@ -195,8 +195,10 @@ async function searchCardsWithText(
   const to = from + limit - 1;
   query = query.range(from, to);
 
-  // Order by ID for consistency
-  query = query.order("id", { ascending: true });
+  // Order by set release (newer first), then by card number within set
+  query = query
+    .order("set_release_order", { ascending: true, nullsFirst: false })
+    .order("local_id", { ascending: true });
 
   const { data, count, error } = await query;
 
@@ -249,8 +251,10 @@ async function searchCardsStandard(
   const to = from + limit - 1;
   query = query.range(from, to);
 
-  // Order by ID for consistency
-  query = query.order("id", { ascending: true });
+  // Order by set release (newer first), then by card number within set
+  query = query
+    .order("set_release_order", { ascending: true, nullsFirst: false })
+    .order("local_id", { ascending: true });
 
   const { data, count, error } = await query;
 

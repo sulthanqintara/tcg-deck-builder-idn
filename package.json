@@ -11,7 +11,8 @@
     "full-scrape": "tsx scripts/scraper/full-scraper.ts",
     "full-scrape:test": "tsx scripts/scraper/full-scraper.ts --test",
     "full-scrape:set": "tsx scripts/scraper/full-scraper.ts",
-    "full-scrape:rarity": "tsx scripts/scraper/full-scraper.ts --rarity-only"
+    "full-scrape:rarity": "tsx scripts/scraper/full-scraper.ts --rarity-only",
+    "gen:types": "powershell -Command \"npx supabase gen types typescript --project-id 'wfgctijwrldvpisgmcfn' --schema public | Set-Content ./lib/supabase.types.ts -Encoding UTF8\""
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

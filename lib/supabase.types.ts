@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       idn_card_abilities: {
@@ -162,6 +137,7 @@ export type Database = {
           resistance: Json | null
           retreat_cost: number | null
           set_id: string | null
+          set_release_order: number | null
           stage: string | null
           subtype: string | null
           types: string[] | null
@@ -185,6 +161,7 @@ export type Database = {
           resistance?: Json | null
           retreat_cost?: number | null
           set_id?: string | null
+          set_release_order?: number | null
           stage?: string | null
           subtype?: string | null
           types?: string[] | null
@@ -208,6 +185,7 @@ export type Database = {
           resistance?: Json | null
           retreat_cost?: number | null
           set_id?: string | null
+          set_release_order?: number | null
           stage?: string | null
           subtype?: string | null
           types?: string[] | null
@@ -230,6 +208,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          release_order: number | null
           total_cards: number | null
         }
         Insert: {
@@ -237,6 +216,7 @@ export type Database = {
           id: string
           logo_url?: string | null
           name: string
+          release_order?: number | null
           total_cards?: number | null
         }
         Update: {
@@ -244,6 +224,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          release_order?: number | null
           total_cards?: number | null
         }
         Relationships: []
@@ -383,9 +364,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
