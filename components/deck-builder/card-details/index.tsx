@@ -39,15 +39,18 @@ export function CardDetailsDialog({
   const isPokemon = card.supertype === "Pokémon";
   const isTrainer = card.supertype === "Trainer";
 
-  // For trainers, try to get effect from first ability
-  const trainerEffect = isTrainer && card.abilities?.[0]?.effect;
+  // For trainers, try to get effect from effectText first, then fallback to first ability
+  const trainerEffect =
+    isTrainer && (card.effectText || card.abilities?.[0]?.effect);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl min-w-[90vw] overflow-hidden bg-background">
+      <DialogContent className="max-w-4xl 2xl:min-w-[60vw] min-w-[90vw] overflow-hidden bg-background">
         <DialogHeader>
           <DialogTitle>Card Details</DialogTitle>
-          <DialogDescription>{card.name}</DialogDescription>
+          <DialogDescription>
+            {isTrainer ? card.subtype : card.name}
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col md:flex-row h-full max-h-[90vh] md:max-h-[85vh]">
           {/* Left Column: Image */}
