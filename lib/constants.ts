@@ -26,24 +26,22 @@ export const ENERGY_TYPES = [
   "Metal",
   "Dragon",
   "Colorless",
-  "Fairy",
 ] as const;
 
 export const ENERGY_TYPE_DATA: Record<
   string,
   { label: string; color: string; textColor?: string }
 > = {
-  Grass: { label: "Grass", color: "#78C850" },
-  Fire: { label: "Fire", color: "#F08030" },
-  Water: { label: "Water", color: "#6890F0" },
-  Lightning: { label: "Lightning", color: "#F8D030" },
-  Psychic: { label: "Psychic", color: "#F85888" },
-  Fighting: { label: "Fighting", color: "#C03028" },
-  Darkness: { label: "Darkness", color: "#705848", textColor: "#fff" },
-  Metal: { label: "Metal", color: "#B8B8D0" },
-  Dragon: { label: "Dragon", color: "#7038F8", textColor: "#fff" },
-  Colorless: { label: "Colorless", color: "#A8A878" },
-  Fairy: { label: "Fairy", color: "#EE99AC" },
+  Grass: { label: "Grass", color: "#5A9A4A" },
+  Fire: { label: "Fire", color: "#E6573D" },
+  Water: { label: "Water", color: "#4A90D9" },
+  Lightning: { label: "Lightning", color: "#F5C63D" },
+  Psychic: { label: "Psychic", color: "#A65BA0" },
+  Fighting: { label: "Fighting", color: "#C9A35A" },
+  Darkness: { label: "Darkness", color: "#5A5366", textColor: "#fff" },
+  Metal: { label: "Metal", color: "#8A9BA8" },
+  Dragon: { label: "Dragon", color: "#C6A832" },
+  Colorless: { label: "Colorless", color: "#C4C4B8" },
 };
 
 // Rarity options based on Indonesian UI

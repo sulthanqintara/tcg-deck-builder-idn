@@ -3,7 +3,6 @@
 import { useDeckBuilder } from "@/hooks/use-deck-builder";
 import { CardGrid } from "@/components/deck-builder/CardGrid";
 import { DeckSidebar } from "@/components/deck-builder/DeckSidebar";
-import { FilterSidebar } from "@/components/deck-builder/FilterSidebar";
 
 export default function Home() {
   const {
@@ -15,7 +14,6 @@ export default function Home() {
     isLoading,
     error,
     deckStats,
-    addToDeck,
     removeFromDeck,
     clearDeck,
     copyDeckList,
@@ -27,11 +25,6 @@ export default function Home() {
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] bg-background">
-      {/* Left Sidebar - Filters */}
-      <aside className="hidden lg:block w-72 border-r bg-card/50">
-        <FilterSidebar filters={filters} onFiltersChange={setFilters} />
-      </aside>
-
       {/* Main Content - Card Grid */}
       <CardGrid
         filters={filters}
@@ -51,7 +44,7 @@ export default function Home() {
       <DeckSidebar
         deck={deck}
         deckStats={deckStats}
-        onAddToDeck={addToDeck}
+        onUpdateCount={setCardCount}
         onRemoveFromDeck={removeFromDeck}
         onClearDeck={clearDeck}
         onCopyDeck={copyDeckList}

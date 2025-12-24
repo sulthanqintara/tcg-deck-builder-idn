@@ -1,8 +1,10 @@
-import { Search, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Search, Loader2, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { type CardFilters, type CardCategory } from "@/lib/types";
-import { CARD_CATEGORIES, CARD_SUPERTYPES } from "@/lib/constants";
+import { FilterDialog } from "./FilterDialog";
+import { CARD_CATEGORIES } from "@/lib/constants";
 
 interface CardGridHeaderProps {
   filters: CardFilters;
@@ -12,6 +14,13 @@ interface CardGridHeaderProps {
   isLoading: boolean;
 }
 
+const QUICK_FILTER_OPTIONS: { value: CardCategory; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: CARD_CATEGORIES.POKEMON, label: "Pokémon" },
+  { value: CARD_CATEGORIES.TRAINER, label: "Trainer" },
+  { value: CARD_CATEGORIES.ENERGY, label: "Energy" },
+];
+
 export function CardGridHeader({
   filters,
   setFilters,
@@ -19,12 +28,14 @@ export function CardGridHeader({
   totalCards,
   isLoading,
 }: CardGridHeaderProps) {
+  const [filterOpen, setFilterOpen] = useState(false);
+
   const handleSearchChange = (search: string) => {
     setFilters({ ...filters, search });
   };
 
-  const handleCategoryChange = (category: string) => {
-    setFilters({ ...filters, category: category as CardCategory });
+  const handleCategoryChange = (category: CardCategory) => {
+    setFilters({ ...filters, category });
   };
 
   return (
@@ -53,25 +64,57 @@ export function CardGridHeader({
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
-        <Tabs
-          value={filters.category}
-          onValueChange={handleCategoryChange}
-          className="w-auto"
+        {/* Quick Filter Toggle Group */}
+        <div className="border rounded-md bg-secondary/30 hidden md:flex">
+          {QUICK_FILTER_OPTIONS.map((option, index) => (
+            <Button
+              key={option.value}
+              variant={
+                filters.category === option.value ? "secondary" : "ghost"
+              }
+              size="sm"
+              className={`
+                h-10 px-3 text-xs font-medium
+                ${index === 0 ? "rounded-r-none" : ""}
+                ${
+                  index === QUICK_FILTER_OPTIONS.length - 1
+                    ? "rounded-l-none"
+                    : ""
+                }
+                ${
+                  index > 0 && index < QUICK_FILTER_OPTIONS.length - 1
+                    ? "rounded-none"
+                    : ""
+                }
+                ${index > 0 ? "border-l border-border/50" : ""}
+                ${
+                  filters.category === option.value
+                    ? "bg-secondary shadow-sm"
+                    : "hover:bg-secondary/50"
+                }
+              `}
+              onClick={() => handleCategoryChange(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+        <Button
+          variant="secondary"
+          className="gap-2"
+          onClick={() => setFilterOpen(true)}
         >
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value={CARD_CATEGORIES.POKEMON}>
-              {CARD_SUPERTYPES.POKEMON}
-            </TabsTrigger>
-            <TabsTrigger value={CARD_CATEGORIES.TRAINER}>
-              {CARD_SUPERTYPES.TRAINER}
-            </TabsTrigger>
-            <TabsTrigger value={CARD_CATEGORIES.ENERGY}>
-              {CARD_SUPERTYPES.ENERGY}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+          <Filter className="h-4 w-4" />
+          Filters
+        </Button>
       </div>
+
+      <FilterDialog
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
     </div>
   );
 }

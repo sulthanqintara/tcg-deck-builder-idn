@@ -8,6 +8,10 @@ import {
   DEFAULT_FILTERS,
 } from "@/lib/types";
 
+// Helper to check if a card is Basic Energy (no 4-copy limit)
+const isBasicEnergy = (card: Card) =>
+  card.category === "Energy" && card.subtype === "Basic";
+
 interface DeckStore {
   deck: DeckItem[];
   filters: CardFilters;
@@ -18,7 +22,6 @@ interface DeckStore {
     value: CardFilters[K]
   ) => void;
   resetFilters: () => void;
-  addToDeck: (card: Card) => void;
   removeFromDeck: (cardId: string) => void;
   setCardCount: (card: Card, count: number) => void;
   clearDeck: () => void;
@@ -39,51 +42,20 @@ export const useDeckStore = create<DeckStore>()(
 
       resetFilters: () => set({ filters: DEFAULT_FILTERS }),
 
-      addToDeck: (card) => {
-        const { deck } = get();
-        const existing = deck.find((c) => c.id === card.id);
-
-        if (existing) {
-          if (existing.count >= 4) {
-            const isBasicEnergy =
-              card.category === "Energy" && card.stage === "Basic";
-            if (!isBasicEnergy) {
-              toast.error("Max 4 copies allowed (except Basic Energy)");
-              return;
-            }
-          }
-          set({
-            deck: deck.map((c) =>
-              c.id === card.id ? { ...c, count: c.count + 1 } : c
-            ),
-          });
-        } else {
-          set({ deck: [...deck, { ...card, count: 1 }] });
-        }
-      },
-
+      // Removes a card entirely from the deck
       removeFromDeck: (cardId) => {
-        const { deck } = get();
-        const existing = deck.find((c) => c.id === cardId);
-        if (existing && existing.count > 1) {
-          set({
-            deck: deck.map((c) =>
-              c.id === cardId ? { ...c, count: c.count - 1 } : c
-            ),
-          });
-        } else {
-          set({ deck: deck.filter((c) => c.id !== cardId) });
-        }
+        set((state) => ({
+          deck: state.deck.filter((c) => c.id !== cardId),
+        }));
       },
 
       setCardCount: (card, count) => {
         if (count < 0) return;
 
-        const isBasicEnergy =
-          card.category === "Energy" && card.subtype === "Basic";
-        const newCount = isBasicEnergy ? count : Math.min(count, 4);
+        const basicEnergy = isBasicEnergy(card);
+        const newCount = basicEnergy ? count : Math.min(count, 4);
 
-        if (!isBasicEnergy && count > 4) {
+        if (!basicEnergy && count > 4) {
           toast.error("Max 4 copies allowed (except Basic Energy)");
         }
 

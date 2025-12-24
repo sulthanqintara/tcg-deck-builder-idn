@@ -332,6 +332,12 @@ function applyFilters(query: any, filters: PaginatedFilters) {
     query = query.ilike("illustrator", `%${filters.illustrator}%`);
   }
 
+  // Energy types filter (for Pokémon and Energy cards)
+  if (filters.energyTypes && filters.energyTypes.length > 0) {
+    // Use overlaps operator to find cards with any of the selected types
+    query = query.overlaps("types", filters.energyTypes);
+  }
+
   return query;
 }
 

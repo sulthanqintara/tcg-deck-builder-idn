@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 
 import Image from "next/image";
-import { Plus, Minus, Trash2, Copy, Save } from "lucide-react";
+import {
+  Plus,
+  Minus,
+  Trash2,
+  Copy,
+  Save,
+  LayoutGrid,
+  List,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { type Card, type DeckItem, type DeckStats } from "@/lib/types";
@@ -12,8 +20,8 @@ import { CARD_SUPERTYPES } from "@/lib/constants";
 interface DeckSidebarProps {
   deck: DeckItem[];
   deckStats: DeckStats;
+  onUpdateCount: (card: Card, count: number) => void;
   onRemoveFromDeck: (cardId: string) => void;
-  onAddToDeck: (card: Card) => void;
   onClearDeck: () => void;
   onCopyDeck: () => void;
   onSaveDeck?: () => void;
@@ -21,16 +29,16 @@ interface DeckSidebarProps {
 
 interface DeckCardRowProps {
   card: DeckItem;
-  onRemoveFromDeck: (cardId: string) => void;
-  onAddToDeck: (card: Card) => void;
+  onUpdateCount: (card: Card, count: number) => void;
 }
 
-function DeckCardRow({
-  card,
-  onRemoveFromDeck,
-  onAddToDeck,
-}: DeckCardRowProps) {
+// Helper to check if a card is Basic Energy (no 4-copy limit)
+const isBasicEnergy = (card: Card) =>
+  card.category === "Energy" && card.subtype === "Basic";
+
+function DeckCardRow({ card, onUpdateCount }: DeckCardRowProps) {
   const [imageError, setImageError] = useState(false);
+  const basicEnergy = isBasicEnergy(card);
 
   useEffect(() => {
     setImageError(false);
@@ -61,7 +69,8 @@ function DeckCardRow({
         <Button
           variant="hover-destructive"
           size="icon"
-          onClick={() => onRemoveFromDeck(card.id)}
+          onClick={() => onUpdateCount(card, card.count - 1)}
+          disabled={card.count === 0}
           className="h-6 w-6 rounded-sm hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
         >
           <Minus className="h-3 w-3" />
@@ -72,7 +81,8 @@ function DeckCardRow({
         <Button
           variant="hover-primary"
           size="icon"
-          onClick={() => onAddToDeck(card)}
+          onClick={() => onUpdateCount(card, card.count + 1)}
+          disabled={!basicEnergy && card.count >= 4}
           className="h-6 w-6 rounded-sm hover:bg-primary/10 hover:text-primary text-muted-foreground"
         >
           <Plus className="h-3 w-3" />
@@ -85,12 +95,14 @@ function DeckCardRow({
 export function DeckSidebar({
   deck,
   deckStats,
+  onUpdateCount,
   onRemoveFromDeck,
-  onAddToDeck,
   onClearDeck,
   onCopyDeck,
   onSaveDeck,
 }: DeckSidebarProps) {
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
   return (
     <div className="w-full lg:w-96 border-l bg-card/50 flex flex-col h-[40vh] lg:h-full">
       <div className="p-4 border-b flex items-center justify-between bg-card">
@@ -101,6 +113,26 @@ export function DeckSidebar({
           </div>
         </div>
         <div className="flex gap-1.5">
+          <div className="flex border rounded-md mr-2">
+            <Button
+              size="icon"
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              className="h-8 w-8 rounded-r-none"
+              onClick={() => setViewMode("list")}
+              title="List View"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
+              className="h-8 w-8 rounded-l-none border-l"
+              onClick={() => setViewMode("grid")}
+              title="Grid View"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
           <Button
             size="icon"
             variant="ghost"
@@ -153,16 +185,66 @@ export function DeckSidebar({
                       {deckStats[type.toLowerCase() as keyof typeof deckStats]}
                     </span>
                   </h3>
-                  <div className="space-y-1">
-                    {cardsOfType.map((card) => (
-                      <DeckCardRow
-                        key={card.id}
-                        card={card}
-                        onRemoveFromDeck={onRemoveFromDeck}
-                        onAddToDeck={onAddToDeck}
-                      />
-                    ))}
-                  </div>
+                  {viewMode === "list" ? (
+                    <div className="space-y-1">
+                      {cardsOfType.map((card) => (
+                        <DeckCardRow
+                          key={card.id}
+                          card={card}
+                          onUpdateCount={onUpdateCount}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {cardsOfType.map((card) => (
+                        <div key={card.id} className="group relative">
+                          <div className="relative aspect-[2.5/3.5] w-full overflow-hidden rounded-sm hover:ring-2 hover:ring-primary transition-all">
+                            <Image
+                              src={card.images.small}
+                              alt={card.name}
+                              fill
+                              className="object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-1">
+                              <div className="flex items-center gap-2 bg-secondary/90 rounded-full px-2 py-0.5">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    onUpdateCount(card, card.count - 1)
+                                  }
+                                  disabled={card.count === 0}
+                                  className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/20"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className="font-bold text-white text-sm">
+                                  {card.count}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    onUpdateCount(card, card.count + 1)
+                                  }
+                                  disabled={
+                                    !isBasicEnergy(card) && card.count >= 4
+                                  }
+                                  className="h-6 w-6 text-primary hover:text-primary hover:bg-primary/20"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm backdrop-blur-sm pointer-events-none group-hover:opacity-0 transition-opacity">
+                              {card.count}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

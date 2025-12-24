@@ -100,7 +100,7 @@ export function CardGrid({
             <p className="text-destructive">{error}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4 pb-10 p-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 3xl:grid-cols-8 gap-4 pb-10 p-8">
             {cards.length > 0 ? (
               <>
                 {cards.map((card) => (
@@ -146,6 +146,8 @@ export function CardGrid({
         card={selectedCard}
         open={!!selectedCard}
         onOpenChange={(open) => !open && setSelectedCard(null)}
+        count={selectedCard ? deckCountMap.get(selectedCard.id) ?? 0 : 0}
+        onUpdateCount={onUpdateCount}
       />
     </div>
   );

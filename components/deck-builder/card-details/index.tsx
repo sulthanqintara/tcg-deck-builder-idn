@@ -16,17 +16,22 @@ import { Stats } from "./Stats";
 import { Footer } from "./Footer";
 import { Legalities } from "./Legalities";
 import { TrainerText } from "./TrainerText";
+import { CardCounter } from "../CardCounter";
 
 interface CardDetailsDialogProps {
   card: CardType | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  count?: number;
+  onUpdateCount?: (card: CardType, count: number) => void;
 }
 
 export function CardDetailsDialog({
   card,
   open,
   onOpenChange,
+  count,
+  onUpdateCount,
 }: CardDetailsDialogProps) {
   const [imageError, setImageError] = useState(false);
   const imageSrc = card ? card.images.large || card.images.small : "";
@@ -55,7 +60,7 @@ export function CardDetailsDialog({
         </DialogHeader>
         <div className="flex flex-col md:flex-row h-full max-h-[90vh] md:max-h-[85vh]">
           {/* Left Column: Image */}
-          <div className="w-full md:w-1/2 bg-neutral-900/5 p-6 flex items-center justify-center relative">
+          <div className="w-full md:w-1/2 bg-neutral-900/5 p-6 flex flex-col items-center justify-center gap-6 relative">
             <div className="relative aspect-[2.5/3.5] w-full max-w-[360px] shadow-2xl rounded-xl overflow-hidden transform transition-transform hover:scale-105 duration-300">
               <Image
                 src={
@@ -70,6 +75,21 @@ export function CardDetailsDialog({
                 onError={() => setImageError(true)}
               />
             </div>
+            {/* Deck Controls */}
+            {typeof count === "number" && onUpdateCount && (
+              <div className="w-full max-w-[360px]">
+                <div className="bg-background/80 backdrop-blur-sm p-4 rounded-xl border shadow-sm space-y-2">
+                  <p className="text-sm font-medium text-center text-muted-foreground">
+                    Deck Quantity
+                  </p>
+                  <CardCounter
+                    card={card}
+                    count={count}
+                    onUpdateCount={onUpdateCount}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column: Details */}

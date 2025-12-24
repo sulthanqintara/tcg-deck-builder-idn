@@ -18,15 +18,8 @@ function useIsClient() {
 }
 
 export function useDeckBuilder() {
-  const {
-    deck,
-    filters,
-    setFilters,
-    addToDeck,
-    removeFromDeck,
-    setCardCount,
-    clearDeck,
-  } = useDeckStore();
+  const { deck, filters, setFilters, removeFromDeck, setCardCount, clearDeck } =
+    useDeckStore();
 
   const isClient = useIsClient();
 
@@ -135,7 +128,6 @@ export function useDeckBuilder() {
     isLoading,
     error: errorMessage,
     deckStats,
-    addToDeck,
     removeFromDeck,
     setCardCount,
     clearDeck,

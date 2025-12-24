@@ -84,6 +84,7 @@ export interface CardFilters {
   setId?: string;
   rarities: string[];
   specialCards: string[];
+  energyTypes: string[];
   illustrator: string;
 }
 
@@ -94,5 +95,6 @@ export const DEFAULT_FILTERS: CardFilters = {
   setId: undefined,
   rarities: [],
   specialCards: [],
+  energyTypes: [],
   illustrator: "",
 };
