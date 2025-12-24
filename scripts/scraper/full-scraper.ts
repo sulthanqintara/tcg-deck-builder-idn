@@ -1060,17 +1060,14 @@ async function processExpansion(
 }
 
 /**
- * Fetch all expansions from the main search page
+ * Parse expansion list page for expansions and pagination info
  */
-async function fetchAllExpansions(): Promise<Expansion[]> {
-  console.log("\n📋 Fetching expansion list...");
-
-  // Fetch the main card search page
-  const html = await fetchWithRetry(`${BASE_URL}/id/card-search/`);
+function parseExpansionListPage(
+  html: string,
+  seen: Set<string>
+): { expansions: Expansion[]; totalPages: number } {
   const $ = cheerio.load(html);
-
   const expansions: Expansion[] = [];
-  const seen = new Set<string>();
 
   // Find expansion list - look for expansion links
   $("ul.expansionArea a, .expansionArea a").each((_, el) => {
@@ -1091,7 +1088,7 @@ async function fetchAllExpansions(): Promise<Expansion[]> {
     }
   });
 
-  // Fallback: look for any expansion links
+  // Fallback: look for any expansion links if none found in expansionArea
   if (expansions.length === 0) {
     $('a[href*="expansionCodes="]').each((_, el) => {
       const href = $(el).attr("href") || "";
@@ -1107,8 +1104,60 @@ async function fetchAllExpansions(): Promise<Expansion[]> {
     });
   }
 
-  console.log(`  Found ${expansions.length} expansions`);
-  return expansions;
+  // Extract pagination info - find the highest page number
+  let totalPages = 1;
+
+  // Look for pagination links like /id/card-search/?pageNo=X
+  $('a[href*="/id/card-search/?pageNo="]').each((_, el) => {
+    const href = $(el).attr("href") || "";
+    const pageMatch = href.match(/pageNo=(\d+)/);
+    if (pageMatch) {
+      const pageNum = parseInt(pageMatch[1], 10);
+      if (pageNum > totalPages) {
+        totalPages = pageNum;
+      }
+    }
+  });
+
+  return { expansions, totalPages };
+}
+
+/**
+ * Fetch all expansions from the main search page (handles pagination)
+ */
+async function fetchAllExpansions(): Promise<Expansion[]> {
+  console.log("\n📋 Fetching expansion list...");
+
+  const allExpansions: Expansion[] = [];
+  const seen = new Set<string>();
+
+  // Fetch first page to get pagination info
+  const firstPageHtml = await fetchWithRetry(`${BASE_URL}/id/card-search/`);
+  const { expansions: firstPageExpansions, totalPages } =
+    parseExpansionListPage(firstPageHtml, seen);
+  allExpansions.push(...firstPageExpansions);
+
+  console.log(
+    `  Page 1/${totalPages}: Found ${firstPageExpansions.length} expansions`
+  );
+
+  // Fetch remaining pages if any
+  for (let page = 2; page <= totalPages; page++) {
+    await delay(DELAY_MS);
+    const pageUrl = `${BASE_URL}/id/card-search/?pageNo=${page}`;
+    const pageHtml = await fetchWithRetry(pageUrl);
+    const { expansions: pageExpansions } = parseExpansionListPage(
+      pageHtml,
+      seen
+    );
+    allExpansions.push(...pageExpansions);
+    console.log(
+      `  Page ${page}/${totalPages}: Found ${pageExpansions.length} expansions`
+    );
+  }
+
+  console.log(`  Total: ${allExpansions.length} expansions found`);
+  return allExpansions;
 }
 
 // --- Main Entry Point ---

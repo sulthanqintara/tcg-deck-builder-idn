@@ -80,7 +80,7 @@ export const useDeckStore = create<DeckStore>()(
         if (count < 0) return;
 
         const isBasicEnergy =
-          card.category === "Energy" && card.stage === "Basic";
+          card.category === "Energy" && card.subtype === "Basic";
         const newCount = isBasicEnergy ? count : Math.min(count, 4);
 
         if (!isBasicEnergy && count > 4) {

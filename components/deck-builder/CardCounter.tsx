@@ -10,7 +10,7 @@ interface CardCounterProps {
 }
 
 export function CardCounter({ card, count, onUpdateCount }: CardCounterProps) {
-  const isBasicEnergy = card.category === "Energy" && card.stage === "Basic";
+  const isBasicEnergy = card.category === "Energy" && card.subtype === "Basic";
 
   const handleInputChange = (value: string) => {
     if (value === "") return;
