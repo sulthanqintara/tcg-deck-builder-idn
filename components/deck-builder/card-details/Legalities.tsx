@@ -5,10 +5,10 @@ interface LegalitiesProps {
 export function Legalities({ regulationMark }: LegalitiesProps) {
   // Determine legality based on regulation mark
   const isStandardLegal =
-    regulationMark && ["F", "G", "H"].includes(regulationMark.toUpperCase());
+    regulationMark && ["G", "H", "I"].includes(regulationMark.toUpperCase());
   const isExpandedLegal =
     regulationMark &&
-    ["D", "E", "F", "G", "H"].includes(regulationMark.toUpperCase());
+    ["D", "E", "F", "G", "H", "I"].includes(regulationMark.toUpperCase());
 
   return (
     <div className="grid grid-cols-2 gap-3 text-xs">

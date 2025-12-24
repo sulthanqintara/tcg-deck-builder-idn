@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Full Pokemon TCG Asia Indonesia Scraper
+ * Full Pokemon TCG Asia Indonesia Scraper v2.0
  *
  * This script performs a complete scrape of the Indonesian Pokemon TCG website
  * by iterating through:
@@ -8,13 +8,12 @@
  * 2. All rarity filters for each expansion
  * 3. All pages within each rarity filter
  *
- * This ensures complete coverage and correctly populates the rarity field.
+ * Supports all card types:
+ * - Pokemon: Basic, Stage 1, Stage 2, V, VMAX, VSTAR, GX, EX, ex, etc.
+ * - Trainer: Item, Supporter, Stadium, Pokemon Tool (Alat Pokemon)
+ * - Energy: Basic Energy (Energi Dasar), Special Energy (Energi Spesial)
  *
- * URL Structure:
- * - Expansion list: https://asia.pokemon-card.com/id/card-search/
- * - Cards by expansion: https://asia.pokemon-card.com/id/card-search/list/?expansionCodes={SET}
- * - Cards by rarity: https://asia.pokemon-card.com/id/card-search/list/?expansionCodes={SET}&rarity[0]={RARITY_VALUE}
- * - Paginated: https://asia.pokemon-card.com/id/card-search/list/?pageNo={PAGE}&expansionCodes={SET}&rarity[0]={RARITY_VALUE}
+ * Schema: Uses normalized tables (idn_card_attacks, idn_card_abilities, idn_card_search_text)
  *
  * Usage:
  *   pnpm full-scrape           # Scrape all sets with all rarities
@@ -64,6 +63,41 @@ const RARITY_MAP: Record<string, number> = {
   MUR: 20, // MUR
 };
 
+// Trainer subtypes (Indonesian -> Normalized)
+const TRAINER_SUBTYPES: Record<string, string> = {
+  item: "Item",
+  supporter: "Supporter",
+  stadium: "Stadium",
+  "pokémon tool": "Pokemon Tool",
+  "pokemon tool": "Pokemon Tool",
+  "alat pokémon": "Pokemon Tool",
+  "alat pokemon": "Pokemon Tool",
+  tool: "Pokemon Tool",
+};
+
+// Energy subtypes (Indonesian -> Normalized)
+const ENERGY_SUBTYPES: Record<string, string> = {
+  "energi dasar": "Basic",
+  "basic energy": "Basic",
+  "energi spesial": "Special",
+  "special energy": "Special",
+  "energi khusus": "Special",
+};
+
+// Pokemon stage patterns (for V-series, GX, EX, etc.)
+const POKEMON_STAGE_PATTERNS: { pattern: RegExp; stage: string }[] = [
+  { pattern: /\bVSTAR\b/i, stage: "VSTAR" },
+  { pattern: /\bVMAX\b/i, stage: "VMAX" },
+  { pattern: /\bV\b(?!MAX|STAR)/i, stage: "V" },
+  { pattern: /\bGX\b/i, stage: "GX" },
+  { pattern: /\bEX\b/i, stage: "EX" }, // Old EX (uppercase)
+  { pattern: /\bex\b/, stage: "ex" }, // New ex (lowercase, Scarlet/Violet)
+  { pattern: /\bBreak\b/i, stage: "BREAK" },
+  { pattern: /\bPRISM\b/i, stage: "Prism Star" },
+  { pattern: /\bRadiant\b/i, stage: "Radiant" },
+  { pattern: /\bKagayaku\b/i, stage: "Radiant" },
+];
+
 // --- Types ---
 interface Expansion {
   code: string;
@@ -81,21 +115,23 @@ interface ScrapedCard {
   localId: string;
   name: string;
   category: "Pokemon" | "Trainer" | "Energy";
+  subtype: string | null; // Trainer: Item/Supporter/Stadium/Pokemon Tool, Energy: Basic/Special
   setId: string | null;
   setName: string | null;
   hp: number | null;
   types: string[];
   regulationMark: string | null;
   rarity: string | null;
-  stage: string | null;
+  stage: string | null; // Pokemon only: Basic, Stage 1, Stage 2, V, VMAX, VSTAR, GX, ex, etc.
   illustrator: string | null;
   imageUrl: string;
   attacks: ScrapedAttack[];
   abilities: ScrapedAbility[];
+  effectText: string | null; // Main effect for Trainer/Energy cards
   weakness: { type: string; value: string } | null;
   resistance: { type: string; value: string } | null;
   retreatCost: number | null;
-  pokedexNumber: number | null;
+  pokedexNumber: number | null; // Pokemon national dex number
   flavorText: string | null;
 }
 
@@ -256,7 +292,56 @@ function parseCardListPage(html: string): CardListResult {
 }
 
 /**
+ * Detect Pokemon stage from H1 text and evolveMarker
+ */
+function detectPokemonStage(
+  h1Text: string,
+  evolveMarker: string
+): string | null {
+  const lowerMarker = evolveMarker.toLowerCase().trim();
+  const lowerH1 = h1Text.toLowerCase();
+
+  // Check evolveMarker first (most reliable for Basic/Stage 1/Stage 2)
+  if (lowerMarker === "basic" || lowerMarker === "dasar") return "Basic";
+  if (lowerMarker === "stage 1" || lowerMarker === "tahap 1") return "Stage 1";
+  if (lowerMarker === "stage 2" || lowerMarker === "tahap 2") return "Stage 2";
+
+  // Check for V-series, GX, EX, ex patterns in H1 or evolveMarker
+  const textToCheck = `${h1Text} ${evolveMarker}`;
+  for (const { pattern, stage } of POKEMON_STAGE_PATTERNS) {
+    if (pattern.test(textToCheck)) {
+      return stage;
+    }
+  }
+
+  // Check for "lainnya" prefix (indicates special Pokemon like VMAX, VSTAR)
+  if (lowerH1.startsWith("lainnya ")) {
+    // Already covered by patterns above, but if nothing matched, mark as special
+    return "Other";
+  }
+
+  return null;
+}
+
+/**
+ * Detect Trainer subtype from H3 heading text
+ */
+function detectTrainerSubtype(subtypeText: string): string | null {
+  const lower = subtypeText.toLowerCase().trim();
+  return TRAINER_SUBTYPES[lower] || null;
+}
+
+/**
+ * Detect Energy subtype from H3 heading text
+ */
+function detectEnergySubtype(subtypeText: string): string | null {
+  const lower = subtypeText.toLowerCase().trim();
+  return ENERGY_SUBTYPES[lower] || null;
+}
+
+/**
  * Parse card detail page - complete card data extraction
+ * Handles Pokemon, Trainer, and Energy cards comprehensively
  */
 function parseCardDetailPage(html: string, cardId: string): ScrapedCard | null {
   const $ = cheerio.load(html);
@@ -266,20 +351,8 @@ function parseCardDetailPage(html: string, cardId: string): ScrapedCard | null {
     const h1El = $("h1").first();
     const titleText = h1El.text().trim();
 
-    // Extract stage from evolveMarker or title
-    let stage: string | null = null;
+    // Extract evolveMarker if present
     const evolveMarker = h1El.find(".evolveMarker").text().toLowerCase().trim();
-    if (evolveMarker) {
-      if (evolveMarker === "basic") stage = "Basic";
-      else if (evolveMarker === "stage 1" || evolveMarker === "tahap 1")
-        stage = "Stage 1";
-      else if (evolveMarker === "stage 2" || evolveMarker === "tahap 2")
-        stage = "Stage 2";
-      else if (evolveMarker.includes("item")) stage = "Item";
-      else if (evolveMarker.includes("supporter")) stage = "Supporter";
-      else if (evolveMarker.includes("stadium")) stage = "Stadium";
-      else if (evolveMarker.includes("tool")) stage = "Tool";
-    }
 
     // Extract name (without stage prefix)
     let name = titleText;
@@ -287,151 +360,241 @@ function parseCardDetailPage(html: string, cardId: string): ScrapedCard | null {
     h1Clone.find(".evolveMarker").remove();
     const nameOnly = h1Clone.text().trim();
     if (nameOnly) {
-      name = nameOnly.replace(/\s+/g, " ").trim();
+      // Remove "lainnya " prefix if present (used for V/VMAX/VSTAR/GX cards)
+      name = nameOnly
+        .replace(/^lainnya\s+/i, "")
+        .replace(/\s+/g, " ")
+        .trim();
     }
 
-    // HP from .mainInfomation
-    let hp: number | null = null;
-    const hpSpan = $(".mainInfomation .number, .hp .number").first();
-    if (hpSpan.length) {
-      const hpVal = parseInt(hpSpan.text().trim(), 10);
-      if (!isNaN(hpVal)) hp = hpVal;
+    // Initialize card data
+    let category: "Pokemon" | "Trainer" | "Energy" = "Pokemon";
+    let subtype: string | null = null;
+    let stage: string | null = null;
+    let effectText: string | null = null;
+
+    // Look for H3 headings to determine card type and extract effect text
+    const h3Elements = $("h3");
+    let foundCardType = false;
+
+    h3Elements.each((_, h3El) => {
+      if (foundCardType) return; // Already found, skip
+
+      const h3Text = $(h3El).text().trim();
+      const h3Lower = h3Text.toLowerCase();
+
+      // Check for Trainer subtypes
+      const trainerSubtype = detectTrainerSubtype(h3Text);
+      if (trainerSubtype) {
+        category = "Trainer";
+        subtype = trainerSubtype;
+        foundCardType = true;
+
+        // Effect text is the content after this H3, before the next H3 or section
+        // It's typically the next sibling text or paragraph
+        const parent = $(h3El).parent();
+        let effectContent = "";
+
+        // Get all text between this H3 and the next structural element
+        const siblings = $(h3El).nextUntil("h3, .illustrator, table");
+        siblings.each((_, sib) => {
+          const text = $(sib).text().trim();
+          if (text && !text.match(/^[A-Z]\s+\d{3}\/\d+/)) {
+            // Skip collector numbers
+            effectContent += " " + text;
+          }
+        });
+
+        // Also check immediate text content
+        if (!effectContent.trim()) {
+          // Get text directly after H3 in the same container
+          const nextText = $(h3El).next().text().trim();
+          if (nextText && !nextText.match(/^[A-Z]\s+\d{3}\/\d+/)) {
+            effectContent = nextText;
+          }
+        }
+
+        effectText = effectContent.trim() || null;
+        return;
+      }
+
+      // Check for Energy subtypes
+      const energySubtype = detectEnergySubtype(h3Text);
+      if (energySubtype) {
+        category = "Energy";
+        subtype = energySubtype;
+        foundCardType = true;
+
+        // Special Energy has effect text, Basic Energy does not
+        if (energySubtype === "Special") {
+          const siblings = $(h3El).nextUntil("h3, .illustrator, table");
+          let effectContent = "";
+          siblings.each((_, sib) => {
+            const text = $(sib).text().trim();
+            if (text && !text.match(/^[A-Z]\s+\d{3}\/\d+/)) {
+              effectContent += " " + text;
+            }
+          });
+          effectText = effectContent.trim() || null;
+        }
+        return;
+      }
+
+      // Check for "Serangan" (Attacks) - indicates Pokemon card
+      if (h3Lower === "serangan" || h3Lower === "attacks") {
+        category = "Pokemon";
+        foundCardType = true;
+      }
+    });
+
+    // If still Pokemon, detect stage
+    if (category === "Pokemon") {
+      stage = detectPokemonStage(titleText, evolveMarker);
     }
+
+    // --- Pokemon-specific data ---
+    let hp: number | null = null;
+    const types: string[] = [];
+    const attacks: ScrapedAttack[] = [];
+    const abilities: ScrapedAbility[] = [];
+    let weakness: { type: string; value: string } | null = null;
+    let resistance: { type: string; value: string } | null = null;
+    let retreatCost: number | null = null;
+    let pokedexNumber: number | null = null;
+    let flavorText: string | null = null;
+
+    if (category === "Pokemon") {
+      // HP from .mainInfomation
+      const hpSpan = $(".mainInfomation .number, .hp .number").first();
+      if (hpSpan.length) {
+        const hpVal = parseInt(hpSpan.text().trim(), 10);
+        if (!isNaN(hpVal)) hp = hpVal;
+      }
+
+      // Types from mainInfomation
+      $(".mainInfomation, .cardInfomation")
+        .find('img[src*="/energy/"]')
+        .each((_, el) => {
+          const src = $(el).attr("src") || "";
+          const match = src.match(/\/energy\/(\w+)\.png/i);
+          if (match && !types.includes(match[1])) {
+            types.push(match[1]);
+          }
+        });
+
+      // Attacks from .skillInformation
+      $(".skillInformation .skill, .skill").each((_, skillEl) => {
+        const $skill = $(skillEl);
+        const attackName = $skill.find(".skillName").text().trim();
+        if (!attackName) return;
+
+        const cost: string[] = [];
+        $skill.find('.skillCost img[src*="/energy/"]').each((_, img) => {
+          const src = $(img).attr("src") || "";
+          const match = src.match(/\/energy\/(\w+)\.png/i);
+          if (match) cost.push(match[1]);
+        });
+
+        const damage = $skill.find(".skillDamage").text().trim() || null;
+        const effect = $skill.find(".skillEffect").text().trim() || null;
+
+        attacks.push({ name: attackName, cost, damage, effect });
+      });
+
+      // Abilities from .talentInformation
+      $(".talentInformation .talent, .ability").each((_, el) => {
+        const $ability = $(el);
+        const abilityName = $ability
+          .find(".talentName, .abilityName")
+          .text()
+          .trim();
+        const type =
+          $ability.find(".talentType, .abilityType").text().trim() || "Ability";
+        const effect = $ability
+          .find(".talentEffect, .abilityEffect, p")
+          .text()
+          .trim();
+
+        if (abilityName) {
+          abilities.push({ name: abilityName, type, effect });
+        }
+      });
+
+      // Stats (weakness, resistance, retreat)
+      const statsTable = $("table").filter((_, el) => {
+        return $(el).text().includes("Kelemahan");
+      });
+
+      if (statsTable.length) {
+        // Weakness
+        const weaknessCell = statsTable
+          .find(".weakpoint, td:contains('Kelemahan')")
+          .first();
+        if (weaknessCell.length) {
+          const weaknessRow = weaknessCell.closest("tr").length
+            ? weaknessCell.closest("tr")
+            : weaknessCell.parent();
+          const weakImg = weaknessRow.find('img[src*="/energy/"]').first();
+          const weakType = weakImg
+            .attr("src")
+            ?.match(/\/energy\/(\w+)\.png/i)?.[1];
+          const weakValue = weaknessRow.text().match(/×(\d+)/)?.[0] || "×2";
+          if (weakType) {
+            weakness = { type: weakType, value: weakValue };
+          }
+        }
+
+        // Resistance
+        const resistCell = statsTable
+          .find(".resist, td:contains('Resistansi')")
+          .first();
+        if (resistCell.length) {
+          const resistRow = resistCell.closest("tr").length
+            ? resistCell.closest("tr")
+            : resistCell.parent();
+          const resistImg = resistRow.find('img[src*="/energy/"]').first();
+          const resistType = resistImg
+            .attr("src")
+            ?.match(/\/energy\/(\w+)\.png/i)?.[1];
+          const resistValue = resistRow.text().match(/(-\d+)/)?.[0];
+          if (resistType && resistValue) {
+            resistance = { type: resistType, value: resistValue };
+          }
+        }
+
+        // Retreat cost
+        const escapeCells = statsTable.find(".escape");
+        escapeCells.each((_, cell) => {
+          const $cell = $(cell);
+          const icons = $cell.find('img[src*="/energy/"]');
+          if (icons.length > 0) {
+            retreatCost = icons.length;
+            return false;
+          }
+        });
+      }
+
+      // Pokedex number (from "No.XXX" pattern)
+      const extraInfo = $(".extraInformation h3").text();
+      const pokeMatch = extraInfo.match(/No\.(\d+)/);
+      if (pokeMatch) {
+        pokedexNumber = parseInt(pokeMatch[1], 10);
+      }
+
+      // Flavor text
+      const flavorEl = $(".discription, .description, .flavorText").first();
+      flavorText = flavorEl.length
+        ? flavorEl.text().trim().slice(0, 500)
+        : null;
+    }
+
+    // --- Common fields ---
 
     // Regulation mark and local ID
     const regMark = $(".expansionColumn .alpha").text().trim() || null;
     const collectorNum = $(".collectorNumber").text().trim();
     const numMatch = collectorNum.match(/^(\d+)/);
     const localId = numMatch ? numMatch[1] : cardId;
-
-    // Category detection
-    let category: "Pokemon" | "Trainer" | "Energy" = "Pokemon";
-    if (
-      evolveMarker.includes("item") ||
-      evolveMarker.includes("supporter") ||
-      evolveMarker.includes("stadium") ||
-      evolveMarker.includes("tool") ||
-      evolveMarker.includes("trainer")
-    ) {
-      category = "Trainer";
-    } else if (
-      evolveMarker.includes("energy") ||
-      evolveMarker.includes("energi") ||
-      titleText.toLowerCase().includes("energy") ||
-      titleText.toLowerCase().includes("energi")
-    ) {
-      category = "Energy";
-    }
-
-    // Types from mainInfomation
-    const types: string[] = [];
-    $(".mainInfomation, .cardInfomation")
-      .find('img[src*="/energy/"]')
-      .each((_, el) => {
-        const src = $(el).attr("src") || "";
-        const match = src.match(/\/energy\/(\w+)\.png/i);
-        if (match && !types.includes(match[1])) {
-          types.push(match[1]);
-        }
-      });
-
-    // Attacks
-    const attacks: ScrapedAttack[] = [];
-    $(".skillInformation .skill, .skill").each((_, skillEl) => {
-      const $skill = $(skillEl);
-      const attackName = $skill.find(".skillName").text().trim();
-      if (!attackName) return;
-
-      const cost: string[] = [];
-      $skill.find('.skillCost img[src*="/energy/"]').each((_, img) => {
-        const src = $(img).attr("src") || "";
-        const match = src.match(/\/energy\/(\w+)\.png/i);
-        if (match) cost.push(match[1]);
-      });
-
-      const damage = $skill.find(".skillDamage").text().trim() || null;
-      const effect = $skill.find(".skillEffect").text().trim() || null;
-
-      attacks.push({ name: attackName, cost, damage, effect });
-    });
-
-    // Abilities
-    const abilities: ScrapedAbility[] = [];
-    $(".talentInformation .talent, .ability").each((_, el) => {
-      const $ability = $(el);
-      const abilityName = $ability
-        .find(".talentName, .abilityName")
-        .text()
-        .trim();
-      const type =
-        $ability.find(".talentType, .abilityType").text().trim() || "Ability";
-      const effect = $ability
-        .find(".talentEffect, .abilityEffect, p")
-        .text()
-        .trim();
-
-      if (abilityName) {
-        abilities.push({ name: abilityName, type, effect });
-      }
-    });
-
-    // Stats (weakness, resistance, retreat)
-    let weakness: { type: string; value: string } | null = null;
-    let resistance: { type: string; value: string } | null = null;
-    let retreatCost: number | null = null;
-
-    const statsTable = $("table").filter((_, el) => {
-      return $(el).text().includes("Kelemahan");
-    });
-
-    if (statsTable.length) {
-      // Weakness
-      const weaknessCell = statsTable
-        .find(".weakpoint, td:contains('Kelemahan')")
-        .first();
-      if (weaknessCell.length) {
-        const weaknessRow = weaknessCell.closest("tr").length
-          ? weaknessCell.closest("tr")
-          : weaknessCell.parent();
-        const weakImg = weaknessRow.find('img[src*="/energy/"]').first();
-        const weakType = weakImg
-          .attr("src")
-          ?.match(/\/energy\/(\w+)\.png/i)?.[1];
-        const weakValue = weaknessRow.text().match(/×(\d+)/)?.[0] || "×2";
-        if (weakType) {
-          weakness = { type: weakType, value: weakValue };
-        }
-      }
-
-      // Resistance
-      const resistCell = statsTable
-        .find(".resist, td:contains('Resistansi')")
-        .first();
-      if (resistCell.length) {
-        const resistRow = resistCell.closest("tr").length
-          ? resistCell.closest("tr")
-          : resistCell.parent();
-        const resistImg = resistRow.find('img[src*="/energy/"]').first();
-        const resistType = resistImg
-          .attr("src")
-          ?.match(/\/energy\/(\w+)\.png/i)?.[1];
-        const resistValue = resistRow.text().match(/(-\d+)/)?.[0];
-        if (resistType && resistValue) {
-          resistance = { type: resistType, value: resistValue };
-        }
-      }
-
-      // Retreat cost
-      const escapeCells = statsTable.find(".escape");
-      escapeCells.each((_, cell) => {
-        const $cell = $(cell);
-        const icons = $cell.find('img[src*="/energy/"]');
-        if (icons.length > 0) {
-          retreatCost = icons.length;
-          return false;
-        }
-      });
-    }
 
     // Illustrator
     const illustratorLink = $('a[href*="illustratorName"]');
@@ -450,20 +613,6 @@ function parseCardDetailPage(html: string, cardId: string): ScrapedCard | null {
       setName = productLink.text().trim() || null;
     }
 
-    // Pokedex number
-    let pokedexNumber: number | null = null;
-    const extraInfo = $(".extraInformation h3").text();
-    const pokeMatch = extraInfo.match(/No\.(\d+)/);
-    if (pokeMatch) {
-      pokedexNumber = parseInt(pokeMatch[1], 10);
-    }
-
-    // Flavor text
-    const flavorEl = $(".discription, .description, .flavorText").first();
-    const flavorText = flavorEl.length
-      ? flavorEl.text().trim().slice(0, 500)
-      : null;
-
     // Image URL
     const paddedId = cardId.padStart(8, "0");
     const imageUrl = `https://asia.pokemon-card.com/id/card-img/id${paddedId}.png`;
@@ -473,6 +622,7 @@ function parseCardDetailPage(html: string, cardId: string): ScrapedCard | null {
       localId,
       name,
       category,
+      subtype,
       setId,
       setName,
       hp,
@@ -484,6 +634,7 @@ function parseCardDetailPage(html: string, cardId: string): ScrapedCard | null {
       imageUrl,
       attacks,
       abilities,
+      effectText,
       weakness,
       resistance,
       retreatCost,
@@ -512,6 +663,9 @@ async function upsertSet(setId: string, setName: string): Promise<void> {
   }
 }
 
+/**
+ * Upsert card with all related data (attacks, abilities, search text)
+ */
 async function upsertCardWithRarity(
   card: ScrapedCard,
   rarity: string | null
@@ -521,22 +675,23 @@ async function upsertCardWithRarity(
     await upsertSet(card.setId, card.setName);
   }
 
-  const { error } = await supabase.from("idn_cards").upsert(
+  // 1. Upsert main card record (without JSONB columns - using normalized tables instead)
+  const { error: cardError } = await supabase.from("idn_cards").upsert(
     {
       id: card.id,
       set_id: card.setId,
       local_id: card.localId,
       name: card.name,
       category: card.category,
+      subtype: card.subtype,
       hp: card.hp,
       types: card.types.length > 0 ? card.types : null,
       regulation_mark: card.regulationMark,
-      rarity: rarity, // Use the rarity from filter
+      rarity: rarity,
       stage: card.stage,
       illustrator: card.illustrator,
       image_url: card.imageUrl,
-      attacks: card.attacks.length > 0 ? card.attacks : null,
-      abilities: card.abilities.length > 0 ? card.abilities : null,
+      effect_text: card.effectText,
       weakness: card.weakness,
       resistance: card.resistance,
       retreat_cost: card.retreatCost,
@@ -547,12 +702,108 @@ async function upsertCardWithRarity(
     { onConflict: "id" }
   );
 
-  if (error) {
-    console.error(`Failed to upsert card ${card.id}:`, error.message);
+  if (cardError) {
+    console.error(`Failed to upsert card ${card.id}:`, cardError.message);
     return false;
   }
 
+  // 2. Delete and re-insert attacks (normalized table)
+  if (card.attacks.length > 0) {
+    await supabase.from("idn_card_attacks").delete().eq("card_id", card.id);
+
+    const attackRows = card.attacks.map((attack, idx) => ({
+      card_id: card.id,
+      name: attack.name,
+      cost: attack.cost,
+      damage: attack.damage,
+      effect: attack.effect,
+      position: idx,
+    }));
+
+    const { error: attackError } = await supabase
+      .from("idn_card_attacks")
+      .insert(attackRows);
+
+    if (attackError) {
+      console.error(
+        `Failed to insert attacks for ${card.id}:`,
+        attackError.message
+      );
+    }
+  }
+
+  // 3. Delete and re-insert abilities (normalized table)
+  if (card.abilities.length > 0) {
+    await supabase.from("idn_card_abilities").delete().eq("card_id", card.id);
+
+    const abilityRows = card.abilities.map((ability, idx) => ({
+      card_id: card.id,
+      name: ability.name,
+      type: ability.type,
+      effect: ability.effect,
+      position: idx,
+    }));
+
+    const { error: abilityError } = await supabase
+      .from("idn_card_abilities")
+      .insert(abilityRows);
+
+    if (abilityError) {
+      console.error(
+        `Failed to insert abilities for ${card.id}:`,
+        abilityError.message
+      );
+    }
+  }
+
+  // 4. Update search text (triggers should handle this, but we ensure it exists)
+  const searchText = buildSearchText(card);
+  const { error: searchError } = await supabase
+    .from("idn_card_search_text")
+    .upsert(
+      {
+        card_id: card.id,
+        search_text: searchText,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "card_id" }
+    );
+
+  if (searchError) {
+    console.error(
+      `Failed to upsert search text for ${card.id}:`,
+      searchError.message
+    );
+  }
+
   return true;
+}
+
+/**
+ * Build search text from card data
+ */
+function buildSearchText(card: ScrapedCard): string {
+  const parts: string[] = [card.name];
+
+  if (card.effectText) {
+    parts.push(card.effectText);
+  }
+
+  for (const attack of card.attacks) {
+    parts.push(attack.name);
+    if (attack.effect) {
+      parts.push(attack.effect);
+    }
+  }
+
+  for (const ability of card.abilities) {
+    parts.push(ability.name);
+    if (ability.effect) {
+      parts.push(ability.effect);
+    }
+  }
+
+  return parts.join(" ").toLowerCase();
 }
 
 async function updateCardRarityOnly(
@@ -812,93 +1063,98 @@ async function processExpansion(
  * Fetch all expansions from the main search page
  */
 async function fetchAllExpansions(): Promise<Expansion[]> {
-  console.log("📋 Fetching expansion list...");
+  console.log("\n📋 Fetching expansion list...");
 
-  // The expansion list spans multiple pages
-  const allExpansions: Expansion[] = [];
-  let page = 1;
-  let hasMore = true;
+  // Fetch the main card search page
+  const html = await fetchWithRetry(`${BASE_URL}/id/card-search/`);
+  const $ = cheerio.load(html);
 
-  while (hasMore) {
-    const url =
-      page === 1
-        ? `${BASE_URL}/id/card-search/`
-        : `${BASE_URL}/id/card-search/?pageNo=${page}`;
+  const expansions: Expansion[] = [];
+  const seen = new Set<string>();
 
-    try {
-      const html = await fetchWithRetry(url);
-      const expansions = parseExpansionList(html);
-
-      // Check if we found new expansions
-      const newExpansions = expansions.filter(
-        (e) => !allExpansions.find((ae) => ae.code === e.code)
-      );
-
-      if (newExpansions.length > 0) {
-        allExpansions.push(...newExpansions);
-        console.log(`  Page ${page}: ${newExpansions.length} expansions`);
-        page++;
-        await delay(DELAY_MS);
-      } else {
-        hasMore = false;
+  // Find expansion list - look for expansion links
+  $("ul.expansionArea a, .expansionArea a").each((_, el) => {
+    const href = $(el).attr("href") || "";
+    const match = href.match(/expansionCodes=([A-Z0-9-]+)/i);
+    if (match) {
+      const code = match[1];
+      if (!seen.has(code)) {
+        seen.add(code);
+        // Get expansion name from the element text or data attribute
+        const name =
+          $(el).find("span").first().text().trim() ||
+          $(el).attr("data-name") ||
+          $(el).text().replace(/\s+/g, " ").trim() ||
+          code;
+        expansions.push({ code, name });
       }
-
-      // Safety limit
-      if (page > 10) hasMore = false;
-    } catch (error) {
-      console.error(`  Error fetching page ${page}:`, (error as Error).message);
-      hasMore = false;
     }
+  });
+
+  // Fallback: look for any expansion links
+  if (expansions.length === 0) {
+    $('a[href*="expansionCodes="]').each((_, el) => {
+      const href = $(el).attr("href") || "";
+      const match = href.match(/expansionCodes=([A-Z0-9-]+)/i);
+      if (match) {
+        const code = match[1];
+        if (!seen.has(code)) {
+          seen.add(code);
+          const name = $(el).text().replace(/\s+/g, " ").trim() || code;
+          expansions.push({ code, name });
+        }
+      }
+    });
   }
 
-  console.log(`  Total expansions found: ${allExpansions.length}\n`);
-  return allExpansions;
+  console.log(`  Found ${expansions.length} expansions`);
+  return expansions;
 }
 
 // --- Main Entry Point ---
-
 async function main(): Promise<void> {
-  console.log(
-    "╔══════════════════════════════════════════════════════════════════╗"
-  );
-  console.log(
-    "║           POKEMON TCG INDONESIA - FULL SCRAPER                   ║"
-  );
-  console.log(
-    "║        Scrapes all cards with rarity from all expansions         ║"
-  );
-  console.log(
-    "╚══════════════════════════════════════════════════════════════════╝\n"
-  );
+  console.log("\n🎴 Pokemon TCG Indonesia Full Scraper v2.0");
+  console.log("=".repeat(50));
 
-  initDatabase();
-
+  // Parse command line arguments
   const args = process.argv.slice(2);
   const testMode = args.includes("--test");
   const rarityOnly = args.includes("--rarity-only");
-  const setArg = args.find((a) => !a.startsWith("--"));
+  const specificSet = args.find(
+    (a) => !a.startsWith("--") && a.toUpperCase() === a
+  );
 
+  // Initialize database
+  initDatabase();
+
+  // Get initial card count
   const initialCount = await getCardCount();
-  console.log(`📊 Current cards in database: ${initialCount}\n`);
+  console.log(`📊 Current cards in database: ${initialCount}`);
 
-  let expansionsToProcess: Expansion[] = [];
+  // Fetch all expansions
+  let expansions = await fetchAllExpansions();
 
-  if (setArg) {
-    // Process specific set
-    expansionsToProcess = [{ code: setArg, name: setArg }];
-    console.log(`🎯 Processing specific set: ${setArg}`);
-  } else {
-    // Fetch all expansions
-    expansionsToProcess = await fetchAllExpansions();
+  if (expansions.length === 0) {
+    console.error("❌ No expansions found. Exiting.");
+    process.exit(1);
   }
 
-  if (testMode && expansionsToProcess.length > 1) {
-    expansionsToProcess = expansionsToProcess.slice(0, 1);
-    console.log("🧪 Test mode: Processing only first expansion");
+  // Filter expansions based on arguments
+  if (specificSet) {
+    expansions = expansions.filter((e) => e.code === specificSet);
+    if (expansions.length === 0) {
+      console.error(`❌ Expansion "${specificSet}" not found.`);
+      process.exit(1);
+    }
+    console.log(`🎯 Targeting specific set: ${specificSet}`);
+  } else if (testMode) {
+    expansions = expansions.slice(0, 1);
+    console.log(`🧪 Test mode: processing only first expansion`);
   }
 
+  // Initialize progress
   const progress: ScrapeProgress = {
-    totalExpansions: expansionsToProcess.length,
+    totalExpansions: expansions.length,
     currentExpansion: 0,
     totalCards: 0,
     cardsUpdated: 0,
@@ -906,40 +1162,30 @@ async function main(): Promise<void> {
   };
 
   // Process each expansion
-  for (const expansion of expansionsToProcess) {
+  for (const expansion of expansions) {
     progress.currentExpansion++;
-    await processExpansion(expansion, progress, {
-      rarityOnly,
-      fullScrape: !rarityOnly,
-    });
+    await processExpansion(expansion, progress, { rarityOnly });
   }
 
-  // Summary
+  // Final summary
+  console.log("\n" + "=".repeat(70));
+  console.log("📊 SCRAPING COMPLETE");
+  console.log("=".repeat(70));
+  console.log(`  Expansions processed: ${progress.totalExpansions}`);
+  console.log(`  Cards updated: ${progress.cardsUpdated}`);
+  console.log(`  Errors: ${progress.errors.length}`);
+
+  if (progress.errors.length > 0) {
+    console.log("\n⚠️ Errors:");
+    progress.errors.slice(0, 10).forEach((e) => console.log(`  - ${e}`));
+    if (progress.errors.length > 10) {
+      console.log(`  ... and ${progress.errors.length - 10} more`);
+    }
+  }
+
   const finalCount = await getCardCount();
-
-  console.log(
-    "\n╔══════════════════════════════════════════════════════════════════╗"
-  );
-  console.log(
-    "║                        SCRAPE COMPLETE                           ║"
-  );
-  console.log(
-    "╚══════════════════════════════════════════════════════════════════╝"
-  );
-  console.log(`   Expansions processed: ${progress.totalExpansions}`);
-  console.log(`   Cards scraped/updated: ${progress.cardsUpdated}`);
-  console.log(`   Errors: ${progress.errors.length}`);
-  console.log(
-    `   Total cards in database: ${finalCount} (+${finalCount - initialCount})`
-  );
-
-  if (progress.errors.length > 0 && progress.errors.length <= 20) {
-    console.log("\n❌ Errors:");
-    progress.errors.forEach((e) => console.log(`   - ${e}`));
-  } else if (progress.errors.length > 20) {
-    console.log(`\n❌ Too many errors (${progress.errors.length}). First 10:`);
-    progress.errors.slice(0, 10).forEach((e) => console.log(`   - ${e}`));
-  }
+  console.log(`\n📊 Final cards in database: ${finalCount}`);
+  console.log(`  New cards added: ${finalCount - initialCount}`);
 }
 
 // Run

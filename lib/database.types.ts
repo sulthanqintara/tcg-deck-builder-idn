@@ -1,50 +1,16 @@
-// Types matching the Supabase idn_cards and idn_sets tables
+// Types derived from Supabase generated schema
+// To regenerate: npx supabase gen types typescript --linked > lib/supabase.types.ts
 
-export interface IdnSet {
-  id: string;
-  name: string;
-  total_cards: number | null;
-  logo_url: string | null;
-  created_at: string;
-}
+import type { Tables } from "./supabase.types";
 
-export interface IdnCard {
-  id: string;
-  set_id: string | null;
-  local_id: string;
-  name: string;
-  category: "Pokemon" | "Trainer" | "Energy";
-  hp: number | null;
-  types: string[] | null;
-  regulation_mark: string | null;
-  rarity: string | null;
-  stage: string | null;
-  illustrator: string | null;
-  image_url: string;
-  attacks: CardAttack[] | null;
-  abilities: CardAbility[] | null;
-  weakness: CardWeakRes | null;
-  resistance: CardWeakRes | null;
-  retreat_cost: number | null;
-  pokedex_number: number | null;
-  flavor_text: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// Table row types from Supabase (using the Tables helper)
+export type IdnCard = Tables<"idn_cards">;
+export type IdnSet = Tables<"idn_sets">;
+export type IdnCardAttack = Tables<"idn_card_attacks">;
+export type IdnCardAbility = Tables<"idn_card_abilities">;
+export type IdnCardSearchText = Tables<"idn_card_search_text">;
 
-export interface CardAttack {
-  name: string;
-  cost: string[];
-  damage: string | null;
-  effect: string | null;
-}
-
-export interface CardAbility {
-  name: string;
-  type: string;
-  effect: string;
-}
-
+// Weakness/Resistance type (stored as JSON in database)
 export interface CardWeakRes {
   type: string;
   value: string;
@@ -54,3 +20,13 @@ export interface CardWeakRes {
 export interface IdnCardWithSet extends IdnCard {
   idn_sets: IdnSet | null;
 }
+
+// Joined type with normalized attacks and abilities
+export interface IdnCardWithRelations extends IdnCard {
+  idn_sets: IdnSet | null;
+  idn_card_attacks: IdnCardAttack[];
+  idn_card_abilities: IdnCardAbility[];
+}
+
+// Alias for backward compatibility
+export type IdnCardFull = IdnCardWithRelations;

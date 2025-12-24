@@ -37,13 +37,15 @@ export interface Card {
   localId: string;
   name: string;
   category: "Pokemon" | "Trainer" | "Energy";
+  subtype?: string; // Trainer: Item/Supporter/Stadium/Pokemon Tool, Energy: Basic/Special
+  effectText?: string; // Main effect text for Trainer/Energy cards
   image?: string;
   illustrator?: string;
   rarity?: string;
   regulationMark?: string;
   hp?: number;
   types?: string[];
-  stage?: string;
+  stage?: string; // Pokemon only: Basic, Stage 1, Stage 2, V, VMAX, VSTAR, GX, ex, etc.
   attacks?: CardAttack[];
   abilities?: CardAbility[];
   weaknesses?: CardWeakRes[];

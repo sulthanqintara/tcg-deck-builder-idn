@@ -1,13 +1,14 @@
 "use server";
 
 import { createClient } from "@supabase/supabase-js";
-import type { Card, CardFilters } from "@/lib/types";
-import type { IdnCard, IdnSet } from "@/lib/database.types";
+import type { Database } from "@/lib/supabase.types";
+import type { Card, CardFilters, CardAttack, CardAbility } from "@/lib/types";
+import type { IdnCardWithRelations } from "@/lib/database.types";
 
-// Create Supabase client for server actions
+// Create Supabase client for server actions (typed with Database schema)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // Helper to map category to supertype
 function mapCategoryToSupertype(
@@ -25,30 +26,47 @@ function mapCategoryToSupertype(
   }
 }
 
-// Map Supabase IdnCard to our Card interface
-function mapIdnCardToCard(
-  idnCard: IdnCard & { idn_sets: IdnSet | null }
-): Card {
-  // Convert attacks from database format to Card format
-  const attacks = idnCard.attacks?.map((a) => ({
-    name: a.name,
-    cost: a.cost,
-    damage: a.damage ?? undefined,
-    effect: a.effect ?? undefined,
-  }));
+// Type for weakness/resistance JSON data
+interface WeakResData {
+  type: string;
+  value: string;
+}
 
-  // Convert abilities from database format to Card format
-  const abilities = idnCard.abilities?.map((a) => ({
-    name: a.name,
-    type: a.type,
-    effect: a.effect,
-  }));
+// Map Supabase IdnCard to our Card interface
+function mapIdnCardToCard(idnCard: IdnCardWithRelations): Card {
+  // Convert attacks from normalized table format to Card format
+  const attacks: CardAttack[] | undefined = idnCard.idn_card_attacks?.length
+    ? idnCard.idn_card_attacks
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map((a) => ({
+          name: a.name,
+          cost: a.cost ?? undefined,
+          damage: a.damage ?? undefined,
+          effect: a.effect ?? undefined,
+        }))
+    : undefined;
+
+  // Convert abilities from normalized table format to Card format
+  const abilities: CardAbility[] | undefined = idnCard.idn_card_abilities
+    ?.length
+    ? idnCard.idn_card_abilities
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map((a) => ({
+          name: a.name,
+          type: a.type ?? "Ability",
+          effect: a.effect,
+        }))
+    : undefined;
+
+  // Parse weakness/resistance from JSON
+  const weakness = idnCard.weakness as WeakResData | null;
+  const resistance = idnCard.resistance as WeakResData | null;
 
   return {
     id: idnCard.id,
     localId: idnCard.local_id,
     name: idnCard.name,
-    category: idnCard.category,
+    category: idnCard.category as "Pokemon" | "Trainer" | "Energy",
     supertype: mapCategoryToSupertype(idnCard.category),
     image: idnCard.image_url,
     illustrator: idnCard.illustrator ?? undefined,
@@ -57,10 +75,12 @@ function mapIdnCardToCard(
     hp: idnCard.hp ?? undefined,
     types: idnCard.types ?? undefined,
     stage: idnCard.stage ?? undefined,
+    subtype: idnCard.subtype ?? undefined,
+    effectText: idnCard.effect_text ?? undefined,
     attacks,
     abilities,
-    weaknesses: idnCard.weakness ? [idnCard.weakness] : undefined,
-    resistances: idnCard.resistance ? [idnCard.resistance] : undefined,
+    weaknesses: weakness ? [weakness] : undefined,
+    resistances: resistance ? [resistance] : undefined,
     retreat: idnCard.retreat_cost ?? undefined,
     set: {
       id: idnCard.set_id || "",
@@ -102,93 +122,13 @@ export async function searchCards(
   };
 
   try {
-    // Build query
-    let query = supabase
-      .from("idn_cards")
-      .select("*, idn_sets(*)", { count: "exact" });
-
-    // Apply filters
-
-    // Search filter (name)
-    if (filters.search) {
-      query = query.ilike("name", `%${filters.search}%`);
+    // If there's a search term, use the search text table for better matching
+    if (filters.search && filters.search.trim()) {
+      return await searchCardsWithText(filters, page, limit);
     }
 
-    // Category filter
-    if (filters.category !== "all") {
-      query = query.eq("category", filters.category);
-    }
-
-    // Set filter
-    if (filters.setId) {
-      query = query.eq("set_id", filters.setId);
-    }
-
-    // Regulation filter
-    if (filters.regulation !== "all") {
-      switch (filters.regulation) {
-        case "standard":
-          query = query.in("regulation_mark", ["F", "G", "H", "I"]);
-          break;
-        case "expanded":
-          query = query.in("regulation_mark", ["D", "E", "F", "G", "H", "I"]);
-          break;
-        case "other":
-          query = query.or(
-            "regulation_mark.is.null,regulation_mark.not.in.(D,E,F,G,H,I)"
-          );
-          break;
-      }
-    }
-
-    // Rarity filter
-    if (filters.rarities.length > 0) {
-      if (filters.rarities.includes("none")) {
-        const otherRarities = filters.rarities.filter((r) => r !== "none");
-        if (otherRarities.length > 0) {
-          query = query.or(
-            `rarity.is.null,rarity.in.(${otherRarities.join(",")})`
-          );
-        } else {
-          query = query.is("rarity", null);
-        }
-      } else {
-        query = query.in("rarity", filters.rarities);
-      }
-    }
-
-    // Illustrator filter
-    if (filters.illustrator) {
-      query = query.ilike("illustrator", `%${filters.illustrator}%`);
-    }
-
-    // Apply pagination
-    const from = page * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
-
-    // Order by ID for consistency
-    query = query.order("id", { ascending: true });
-
-    const { data, count, error } = await query;
-
-    if (error) {
-      console.error("Supabase query error:", error);
-      return { ...emptyResult, error: error.message };
-    }
-
-    const cards = (data || []).map((row) =>
-      mapIdnCardToCard(row as IdnCard & { idn_sets: IdnSet | null })
-    );
-
-    const totalCards = count || 0;
-
-    return {
-      cards,
-      page,
-      totalCards,
-      hasMore: from + limit < totalCards,
-    };
+    // Otherwise, use standard query
+    return await searchCardsStandard(filters, page, limit);
   } catch (error) {
     console.error("Search error:", error);
     return {
@@ -196,6 +136,191 @@ export async function searchCards(
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }
+}
+
+/**
+ * Search cards using the idn_card_search_text table
+ * This searches card names, attack names/effects, ability names/effects, and trainer/energy effect text
+ */
+async function searchCardsWithText(
+  filters: PaginatedFilters,
+  page: number,
+  limit: number
+): Promise<SearchCardsResult> {
+  const emptyResult: SearchCardsResult = {
+    cards: [],
+    page,
+    totalCards: 0,
+    hasMore: false,
+  };
+
+  const searchTerm = filters.search!.toLowerCase().trim();
+
+  // First, get matching card IDs from the search text table
+  const { data: searchResults, error: searchError } = await supabase
+    .from("idn_card_search_text")
+    .select("card_id")
+    .ilike("search_text", `%${searchTerm}%`);
+
+  if (searchError) {
+    console.error("Search text query error:", searchError);
+    return { ...emptyResult, error: searchError.message };
+  }
+
+  if (!searchResults || searchResults.length === 0) {
+    return emptyResult;
+  }
+
+  const matchingCardIds = searchResults.map((r) => r.card_id);
+
+  // Now query the cards with all other filters, including related data
+  let query = supabase
+    .from("idn_cards")
+    .select("*, idn_sets(*), idn_card_attacks(*), idn_card_abilities(*)", {
+      count: "exact",
+    })
+    .in("id", matchingCardIds);
+
+  // Apply additional filters
+  query = applyFilters(query, filters);
+
+  // Apply pagination
+  const from = page * limit;
+  const to = from + limit - 1;
+  query = query.range(from, to);
+
+  // Order by ID for consistency
+  query = query.order("id", { ascending: true });
+
+  const { data, count, error } = await query;
+
+  if (error) {
+    console.error("Supabase query error:", error);
+    return { ...emptyResult, error: error.message };
+  }
+
+  const cards = (data || []).map((row) =>
+    mapIdnCardToCard(row as IdnCardWithRelations)
+  );
+
+  const totalCards = count || 0;
+
+  return {
+    cards,
+    page,
+    totalCards,
+    hasMore: from + limit < totalCards,
+  };
+}
+
+/**
+ * Standard search without text search (no search term)
+ */
+async function searchCardsStandard(
+  filters: PaginatedFilters,
+  page: number,
+  limit: number
+): Promise<SearchCardsResult> {
+  const emptyResult: SearchCardsResult = {
+    cards: [],
+    page,
+    totalCards: 0,
+    hasMore: false,
+  };
+
+  // Query cards with related data (attacks, abilities)
+  let query = supabase
+    .from("idn_cards")
+    .select("*, idn_sets(*), idn_card_attacks(*), idn_card_abilities(*)", {
+      count: "exact",
+    });
+
+  // Apply filters
+  query = applyFilters(query, filters);
+
+  // Apply pagination
+  const from = page * limit;
+  const to = from + limit - 1;
+  query = query.range(from, to);
+
+  // Order by ID for consistency
+  query = query.order("id", { ascending: true });
+
+  const { data, count, error } = await query;
+
+  if (error) {
+    console.error("Supabase query error:", error);
+    return { ...emptyResult, error: error.message };
+  }
+
+  const cards = (data || []).map((row) =>
+    mapIdnCardToCard(row as IdnCardWithRelations)
+  );
+
+  const totalCards = count || 0;
+
+  return {
+    cards,
+    page,
+    totalCards,
+    hasMore: from + limit < totalCards,
+  };
+}
+
+/**
+ * Apply common filters to a query
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyFilters(query: any, filters: PaginatedFilters) {
+  // Category filter
+  if (filters.category !== "all") {
+    query = query.eq("category", filters.category);
+  }
+
+  // Set filter
+  if (filters.setId) {
+    query = query.eq("set_id", filters.setId);
+  }
+
+  // Regulation filter
+  if (filters.regulation !== "all") {
+    switch (filters.regulation) {
+      case "standard":
+        query = query.in("regulation_mark", ["F", "G", "H", "I"]);
+        break;
+      case "expanded":
+        query = query.in("regulation_mark", ["D", "E", "F", "G", "H", "I"]);
+        break;
+      case "other":
+        query = query.or(
+          "regulation_mark.is.null,regulation_mark.not.in.(D,E,F,G,H,I)"
+        );
+        break;
+    }
+  }
+
+  // Rarity filter
+  if (filters.rarities.length > 0) {
+    if (filters.rarities.includes("none")) {
+      const otherRarities = filters.rarities.filter((r) => r !== "none");
+      if (otherRarities.length > 0) {
+        query = query.or(
+          `rarity.is.null,rarity.in.(${otherRarities.join(",")})`
+        );
+      } else {
+        query = query.is("rarity", null);
+      }
+    } else {
+      query = query.in("rarity", filters.rarities);
+    }
+  }
+
+  // Illustrator filter
+  if (filters.illustrator) {
+    query = query.ilike("illustrator", `%${filters.illustrator}%`);
+  }
+
+  return query;
 }
 
 // Get available sets for the product filter
@@ -224,12 +349,12 @@ export async function getSets(): Promise<
   }
 }
 
-// Get a single card by ID
+// Get a single card by ID (with full data including attacks and abilities)
 export async function getCard(cardId: string): Promise<Card | null> {
   try {
     const { data, error } = await supabase
       .from("idn_cards")
-      .select("*, idn_sets(*)")
+      .select("*, idn_sets(*), idn_card_attacks(*), idn_card_abilities(*)")
       .eq("id", cardId)
       .single();
 
@@ -238,7 +363,7 @@ export async function getCard(cardId: string): Promise<Card | null> {
       return null;
     }
 
-    return mapIdnCardToCard(data as IdnCard & { idn_sets: IdnSet | null });
+    return mapIdnCardToCard(data as IdnCardWithRelations);
   } catch (error) {
     console.error("Failed to fetch card:", error);
     return null;

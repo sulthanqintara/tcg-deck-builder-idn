@@ -10,7 +10,7 @@ export function Footer({ card }: FooterProps) {
       <div className="flex flex-col gap-1 text-sm">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Illustrator</span>
-          <span className="font-medium underline decoration-1 underline-offset-2 hover:text-primary cursor-pointer transition-colors max-w-[200px] truncate block text-right">
+          <span className="font-medium max-w-[200px] truncate block text-right">
             {card.illustrator || "Unknown"}
           </span>
         </div>

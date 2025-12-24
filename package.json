@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "db:types": "npx supabase gen types typescript --linked > lib/supabase.types.ts",
     "full-scrape": "tsx scripts/scraper/full-scraper.ts",
     "full-scrape:test": "tsx scripts/scraper/full-scraper.ts --test",
     "full-scrape:set": "tsx scripts/scraper/full-scraper.ts",
