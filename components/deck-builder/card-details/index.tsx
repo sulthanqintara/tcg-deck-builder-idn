@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { type Card as CardType } from "@/lib/types";
+import { CARD_SUPERTYPES } from "@/lib/constants";
 import { Header } from "./Header";
 import { Abilities } from "./Abilities";
 import { Attacks } from "./Attacks";
@@ -36,8 +37,8 @@ export function CardDetailsDialog({
 
   if (!card) return null;
 
-  const isPokemon = card.supertype === "Pokémon";
-  const isTrainer = card.supertype === "Trainer";
+  const isPokemon = card.supertype === CARD_SUPERTYPES.POKEMON;
+  const isTrainer = card.supertype === CARD_SUPERTYPES.TRAINER;
 
   // For trainers, try to get effect from effectText first, then fallback to first ability
   const trainerEffect =

@@ -1,5 +1,6 @@
 // Card types aligned with TCGDex SDK structure
 // See: https://tcgdex.dev/sdks/typescript
+import { CARD_CATEGORIES, CARD_SUPERTYPES } from "@/lib/constants";
 
 export interface CardImage {
   small: string;
@@ -36,7 +37,7 @@ export interface Card {
   id: string;
   localId: string;
   name: string;
-  category: "Pokemon" | "Trainer" | "Energy";
+  category: (typeof CARD_CATEGORIES)[keyof typeof CARD_CATEGORIES];
   subtype?: string; // Trainer: Item/Supporter/Stadium/Pokemon Tool, Energy: Basic/Special
   effectText?: string; // Main effect text for Trainer/Energy cards
   image?: string;
@@ -54,7 +55,7 @@ export interface Card {
   set: CardSet;
   // For backwards compat with existing DeckSidebar
   images: CardImage;
-  supertype: "Pokémon" | "Trainer" | "Energy";
+  supertype: (typeof CARD_SUPERTYPES)[keyof typeof CARD_SUPERTYPES];
   number: string;
 }
 
@@ -71,7 +72,9 @@ export interface DeckStats {
 }
 
 // Filter types for the new UI
-export type CardCategory = "all" | "Pokemon" | "Trainer" | "Energy";
+export type CardCategory =
+  | "all"
+  | (typeof CARD_CATEGORIES)[keyof typeof CARD_CATEGORIES];
 export type RegulationType = "standard" | "expanded" | "other" | "all";
 
 export interface CardFilters {
@@ -87,37 +90,9 @@ export interface CardFilters {
 export const DEFAULT_FILTERS: CardFilters = {
   search: "",
   category: "all",
-  regulation: "all",
+  regulation: "standard",
   setId: undefined,
   rarities: [],
   specialCards: [],
   illustrator: "",
 };
-
-// Rarity options based on Indonesian UI
-export const RARITY_OPTIONS = [
-  { value: "U", label: "U" },
-  { value: "MUR", label: "MUR" },
-  { value: "BWR", label: "BWR" },
-  { value: "ACE", label: "ACE" },
-  { value: "SAR", label: "SAR" },
-  { value: "AR", label: "AR" },
-  { value: "K", label: "K" },
-  { value: "UR", label: "UR" },
-  { value: "SR", label: "SR" },
-  { value: "RRR", label: "RRR" },
-  { value: "RR", label: "RR" },
-  { value: "R", label: "R" },
-  { value: "C", label: "C" },
-  { value: "none", label: "Tanpa Tanda" },
-] as const;
-
-// Special card options
-export const SPECIAL_CARD_OPTIONS = [
-  { value: "single_strike", label: "Serangan Tunggal" },
-  { value: "rapid_strike", label: "Serangan Beruntun" },
-  { value: "fusion_strike", label: "Bentuk Fusion" },
-  { value: "ace_spec", label: "ACE SPEC" },
-  { value: "ancient", label: "Purba" },
-  { value: "future", label: "Futur" },
-] as const;

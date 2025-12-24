@@ -4,6 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase.types";
 import type { Card, CardFilters, CardAttack, CardAbility } from "@/lib/types";
 import type { IdnCardWithRelations } from "@/lib/database.types";
+import {
+  REGULATION_MARKS,
+  CARD_CATEGORIES,
+  CARD_SUPERTYPES,
+} from "@/lib/constants";
 
 // Create Supabase client for server actions (typed with Database schema)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -11,18 +16,19 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 
 // Helper to map category to supertype
+// Helper to map category to supertype
 function mapCategoryToSupertype(
   category: string
-): "Pokémon" | "Trainer" | "Energy" {
+): (typeof CARD_SUPERTYPES)[keyof typeof CARD_SUPERTYPES] {
   switch (category?.toLowerCase()) {
-    case "pokemon":
-      return "Pokémon";
-    case "trainer":
-      return "Trainer";
-    case "energy":
-      return "Energy";
+    case CARD_CATEGORIES.POKEMON.toLowerCase():
+      return CARD_SUPERTYPES.POKEMON;
+    case CARD_CATEGORIES.TRAINER.toLowerCase():
+      return CARD_SUPERTYPES.TRAINER;
+    case CARD_CATEGORIES.ENERGY.toLowerCase():
+      return CARD_SUPERTYPES.ENERGY;
     default:
-      return "Pokémon";
+      return CARD_SUPERTYPES.POKEMON;
   }
 }
 
@@ -66,7 +72,7 @@ function mapIdnCardToCard(idnCard: IdnCardWithRelations): Card {
     id: idnCard.id,
     localId: idnCard.local_id,
     name: idnCard.name,
-    category: idnCard.category as "Pokemon" | "Trainer" | "Energy",
+    category: idnCard.category as Card["category"],
     supertype: mapCategoryToSupertype(idnCard.category),
     image: idnCard.image_url,
     illustrator: idnCard.illustrator ?? undefined,
@@ -286,14 +292,16 @@ function applyFilters(query: any, filters: PaginatedFilters) {
   if (filters.regulation !== "all") {
     switch (filters.regulation) {
       case "standard":
-        query = query.in("regulation_mark", ["F", "G", "H", "I"]);
+        query = query.in("regulation_mark", REGULATION_MARKS.STANDARD);
         break;
       case "expanded":
-        query = query.in("regulation_mark", ["D", "E", "F", "G", "H", "I"]);
+        query = query.in("regulation_mark", REGULATION_MARKS.EXPANDED);
         break;
       case "other":
         query = query.or(
-          "regulation_mark.is.null,regulation_mark.not.in.(D,E,F,G,H,I)"
+          `regulation_mark.is.null,regulation_mark.not.in.(${REGULATION_MARKS.EXPANDED.join(
+            ","
+          )})`
         );
         break;
     }

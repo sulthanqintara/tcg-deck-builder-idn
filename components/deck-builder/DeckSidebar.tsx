@@ -7,6 +7,7 @@ import { Plus, Minus, Trash2, Copy, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { type Card, type DeckItem, type DeckStats } from "@/lib/types";
+import { CARD_SUPERTYPES } from "@/lib/constants";
 
 interface DeckSidebarProps {
   deck: DeckItem[];
@@ -136,7 +137,11 @@ export function DeckSidebar({
           </div>
         ) : (
           <div className="space-y-6">
-            {["Pokémon", "Trainer", "Energy"].map((type) => {
+            {[
+              CARD_SUPERTYPES.POKEMON,
+              CARD_SUPERTYPES.TRAINER,
+              CARD_SUPERTYPES.ENERGY,
+            ].map((type) => {
               const cardsOfType = deck.filter((c) => c.supertype === type);
               if (cardsOfType.length === 0) return null;
 

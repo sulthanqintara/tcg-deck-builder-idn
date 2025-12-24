@@ -2,6 +2,7 @@ import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type CardFilters, type CardCategory } from "@/lib/types";
+import { CARD_CATEGORIES, CARD_SUPERTYPES } from "@/lib/constants";
 
 interface CardGridHeaderProps {
   filters: CardFilters;
@@ -59,9 +60,15 @@ export function CardGridHeader({
         >
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="Pokemon">Pokémon</TabsTrigger>
-            <TabsTrigger value="Trainer">Trainer</TabsTrigger>
-            <TabsTrigger value="Energy">Energy</TabsTrigger>
+            <TabsTrigger value={CARD_CATEGORIES.POKEMON}>
+              {CARD_SUPERTYPES.POKEMON}
+            </TabsTrigger>
+            <TabsTrigger value={CARD_CATEGORIES.TRAINER}>
+              {CARD_SUPERTYPES.TRAINER}
+            </TabsTrigger>
+            <TabsTrigger value={CARD_CATEGORIES.ENERGY}>
+              {CARD_SUPERTYPES.ENERGY}
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>

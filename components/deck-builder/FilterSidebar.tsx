@@ -11,9 +11,12 @@ import {
   type CardFilters,
   type CardCategory,
   type RegulationType,
+} from "@/lib/types";
+import {
   RARITY_OPTIONS,
   SPECIAL_CARD_OPTIONS,
-} from "@/lib/types";
+  CARD_CATEGORIES,
+} from "@/lib/constants";
 import { useSets } from "@/hooks/use-cards";
 
 interface FilterSidebarProps {
@@ -79,9 +82,9 @@ export function FilterSidebar({
           >
             {[
               { value: "all", label: "Semua" },
-              { value: "Pokemon", label: "Pokémon" },
-              { value: "Trainer", label: "Trainer" },
-              { value: "Energy", label: "Energi" },
+              { value: CARD_CATEGORIES.POKEMON, label: "Pokémon" },
+              { value: CARD_CATEGORIES.TRAINER, label: "Trainer" },
+              { value: CARD_CATEGORIES.ENERGY, label: "Energi" },
             ].map((option) => (
               <div key={option.value} className="flex items-center space-x-2">
                 <RadioGroupItem
