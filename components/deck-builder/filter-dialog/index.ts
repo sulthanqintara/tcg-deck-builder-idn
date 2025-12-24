@@ -1,5 +1,4 @@
 export { FilterSection } from "./FilterSection";
-export { SearchFilter } from "./SearchFilter";
 export { CardTypeFilter } from "./CardTypeFilter";
 export { RegulationFilter } from "./RegulationFilter";
 export { ElementFilter } from "./ElementFilter";

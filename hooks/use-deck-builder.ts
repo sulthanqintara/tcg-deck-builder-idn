@@ -6,6 +6,7 @@ import { type DeckStats, type Card } from "@/lib/types";
 import { useDeckStore } from "@/store/use-deck-store";
 import { useInfiniteCards } from "@/hooks/use-cards";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useFilterParams } from "@/hooks/use-filter-params";
 
 // Hydration-safe hook to check if we're on the client
 const emptySubscribe = () => () => {};
@@ -18,8 +19,8 @@ function useIsClient() {
 }
 
 export function useDeckBuilder() {
-  const { deck, filters, setFilters, removeFromDeck, setCardCount, clearDeck } =
-    useDeckStore();
+  const { deck, removeFromDeck, setCardCount, clearDeck } = useDeckStore();
+  const { filters, setFilters } = useFilterParams();
 
   const isClient = useIsClient();
 

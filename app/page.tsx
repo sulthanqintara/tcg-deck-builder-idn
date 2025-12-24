@@ -1,10 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { useDeckBuilder } from "@/hooks/use-deck-builder";
 import { CardGrid } from "@/components/deck-builder/CardGrid";
 import { DeckSidebar } from "@/components/deck-builder/DeckSidebar";
+import { Loader2 } from "lucide-react";
 
-export default function Home() {
+function DeckBuilderContent() {
   const {
     filters,
     setFilters,
@@ -50,5 +52,21 @@ export default function Home() {
         onCopyDeck={copyDeckList}
       />
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-[calc(100vh-4rem)] bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <DeckBuilderContent />
+    </Suspense>
   );
 }

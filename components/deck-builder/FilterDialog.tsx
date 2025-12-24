@@ -17,7 +17,6 @@ import {
   DEFAULT_FILTERS,
 } from "@/lib/types";
 import {
-  SearchFilter,
   CardTypeFilter,
   RegulationFilter,
   ElementFilter,
@@ -70,11 +69,6 @@ export function FilterDialog({
 
         <ScrollArea className="flex-1 overflow-y-auto">
           <div className="p-4 space-y-6">
-            <SearchFilter
-              value={filters.search}
-              onChange={(v) => updateFilter("search", v)}
-            />
-
             <CardTypeFilter
               value={filters.category}
               onChange={(v) => updateFilter("category", v as CardCategory)}
