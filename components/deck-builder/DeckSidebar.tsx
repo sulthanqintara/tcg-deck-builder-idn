@@ -57,6 +57,7 @@ function DeckCardRow({ card, onUpdateCount }: DeckCardRowProps) {
           fill
           className="object-cover rounded-sm"
           onError={() => setImageError(true)}
+          unoptimized
         />
       </div>
       <div className="flex-1 min-w-0">
@@ -205,6 +206,7 @@ export function DeckSidebar({
                               alt={card.name}
                               fill
                               className="object-cover"
+                              unoptimized
                             />
                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-1">
                               <div className="flex items-center gap-2 bg-secondary/90 rounded-full px-2 py-0.5">

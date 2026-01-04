@@ -43,6 +43,7 @@ function CardItemComponent({
             loading="lazy"
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 16vw"
             onError={() => setImageError(true)}
+            unoptimized
           />
           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <span className="text-white font-medium">View Details</span>

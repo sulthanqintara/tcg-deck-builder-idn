@@ -155,6 +155,7 @@ export default function DeckClient({ initialDeck }: DeckClientProps) {
                                 alt={card.name}
                                 fill
                                 className="object-cover"
+                                unoptimized
                               />
                             </div>
                             <div className="flex-1 min-w-0">

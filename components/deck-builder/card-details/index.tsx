@@ -73,6 +73,7 @@ export function CardDetailsDialog({
                 className="object-contain"
                 priority
                 onError={() => setImageError(true)}
+                unoptimized
               />
             </div>
             {/* Deck Controls */}
